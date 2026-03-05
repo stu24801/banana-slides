@@ -8,6 +8,7 @@ import { SlidePreview } from './pages/SlidePreview';
 import { SettingsPage } from './pages/Settings';
 import { Login } from './pages/Login';
 import { useProjectStore } from './store/useProjectStore';
+import { useToast } from './components/shared';
 import apiClient from './api/client';
 
 function App() {
