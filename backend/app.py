@@ -118,10 +118,15 @@ def create_app():
 
     @app.before_request
     def _global_auth():
-        # 放行 auth 相關路由 & health check & OPTIONS
+        # 放行 auth 相關路由 & health check & OPTIONS & 靜態圖片
         if _req.method == 'OPTIONS':
             return
-        if _req.path.startswith('/api/auth/') or _req.path == '/api/health':
+        if (
+            _req.path.startswith('/api/auth/') or
+            _req.path in ('/api/health', '/health') or
+            _req.path.startswith('/files/') or
+            _req.path.startswith('/uploads/')
+        ):
             return
         # 若未設定密碼，全部放行
         if not _get_password():
