@@ -413,7 +413,42 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         image_path, next_version = save_image_with_version(
                             image, project_id, page_id, file_service, page_obj=page_obj
                         )
-                        
+
+                        # ── 生成無文字背景圖（供 PPTX 匯出用）─────────────────────
+                        try:
+                            from services.prompts import get_clean_background_prompt
+                            bg_prompt = get_clean_background_prompt()
+                            logger.info(f"🖼️ Generating text-free background for page {page_index}...")
+                            bg_image = ai_service.generate_image(
+                                bg_prompt,
+                                ref_image_path=file_service.get_absolute_path(image_path),
+                                aspect_ratio=aspect_ratio,
+                                resolution=resolution,
+                            )
+                            if bg_image:
+                                abs_img_path = file_service.get_absolute_path(image_path)
+                                import os
+                                bg_filename = os.path.basename(abs_img_path).replace('.png', '_bg.png')
+                                bg_dir = os.path.dirname(abs_img_path)
+                                bg_abs_path = os.path.join(bg_dir, bg_filename)
+                                bg_image.save(bg_abs_path, format='PNG')
+                                # 轉換為相對路徑（與 image_path 格式相同）
+                                bg_rel_path = image_path.replace(
+                                    os.path.basename(abs_img_path), bg_filename
+                                )
+                                # 更新資料庫（已在 app_context 內）
+                                from models import db, Page as _PageModel
+                                _p = _PageModel.query.get(page_id)
+                                if _p:
+                                    _p.bg_image_path = bg_rel_path
+                                    db.session.commit()
+                                logger.info(f"✅ Background image saved: {bg_abs_path}")
+                            else:
+                                logger.warning(f"Background image generation returned None for page {page_index}")
+                        except Exception as bg_err:
+                            logger.warning(f"Background image generation failed (non-critical): {bg_err}")
+                        # ────────────────────────────────────────────────────────────
+
                         return (page_id, image_path, None)
                         
                     except Exception as e:

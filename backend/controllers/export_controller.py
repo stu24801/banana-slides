@@ -60,10 +60,15 @@ def export_pptx(project_id):
         for page in pages:
             if not page.generated_image_path:
                 continue
-            abs_path = file_service.get_absolute_path(page.generated_image_path)
+            # 優先用無文字背景圖，沒有則降級用完整圖
+            if page.bg_image_path:
+                bg_abs = file_service.get_absolute_path(page.bg_image_path)
+                image_for_export = bg_abs if os.path.exists(bg_abs) else file_service.get_absolute_path(page.generated_image_path)
+            else:
+                image_for_export = file_service.get_absolute_path(page.generated_image_path)
             outline = page.get_outline_content() or {}
             pages_data.append({
-                'image_path': abs_path,
+                'image_path': image_for_export,
                 'title': outline.get('title', ''),
                 'points': outline.get('points', []),
             })

@@ -22,6 +22,7 @@ class Page(db.Model):
     description_content = db.Column(db.Text, nullable=True)  # JSON string
     generated_image_path = db.Column(db.String(500), nullable=True)  # Original PNG image path
     cached_image_path = db.Column(db.String(500), nullable=True)  # Compressed JPG thumbnail path
+    bg_image_path = db.Column(db.String(500), nullable=True)  # Text-free background PNG (for PPTX export)
     status = db.Column(db.String(50), nullable=False, default='DRAFT')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
