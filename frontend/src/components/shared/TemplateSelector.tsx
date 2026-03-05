@@ -202,38 +202,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         )}
 
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">預設模板</h4>
           <div className="grid grid-cols-4 gap-4">
-            {/* 預設模板 */}
-            {presetTemplates.map((template) => (
-              <div
-                key={template.id}
-                onClick={() => template.preview && handleSelectPresetTemplate(template.id, template.preview)}
-                className={`aspect-[4/3] rounded-lg border-2 cursor-pointer transition-all bg-gray-100 flex items-center justify-center relative ${
-                  selectedPresetTemplateId === template.id
-                    ? 'border-banana-500 ring-2 ring-banana-200'
-                    : 'border-gray-200 hover:border-banana-500'
-                }`}
-              >
-                {template.preview ? (
-                  <>
-                    <img
-                      src={template.thumb || template.preview}
-                      alt={template.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    {selectedPresetTemplateId === template.id && (
-                      <div className="absolute inset-0 bg-banana-500 bg-opacity-20 flex items-center justify-center pointer-events-none">
-                        <span className="text-white font-semibold text-sm">已選擇</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-sm text-gray-500">{template.name}</span>
-                )}
-              </div>
-            ))}
-
             {/* 上傳新模板 */}
             <label className="aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 hover:border-banana-500 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden">
               <span className="text-2xl">+</span>

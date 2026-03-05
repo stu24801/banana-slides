@@ -41,7 +41,7 @@ export function Login({ onLogin }: LoginProps) {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🍌</div>
-          <h1 className="text-2xl font-bold text-white">蕉幻 Banana Slides</h1>
+          <h1 className="text-2xl font-bold text-white">生成 Banana Slides</h1>
           <p className="text-gray-400 text-sm mt-1">AI 原生 PPT 生成器</p>
         </div>
 

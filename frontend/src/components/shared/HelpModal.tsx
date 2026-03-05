@@ -115,11 +115,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         <div className="inline-flex items-center justify-center mr-4">
           <img
             src="/logo.png"
-            alt="蕉幻 Logo"
+            alt="生成 Logo"
             className="h-16 w-16 object-contain"
           />
         </div>
-        <h3 className="text-2xl font-bold text-gray-800">歡迎使用蕉幻！</h3>
+        <h3 className="text-2xl font-bold text-gray-800">歡迎使用生成！</h3>
         <p className="text-sm text-gray-600">在開始前，讓我們先完成基礎配置</p>
       </div>
 
@@ -215,7 +215,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
   const renderShowcasePage = () => (
     <div className="space-y-4">
       <p className="text-sm text-gray-600 text-center">
-        以下是使用蕉幻生成的 PPT 案例展示
+        以下是使用生成生成的 PPT 案例展示
       </p>
 
       {/* 輪播圖 */}
@@ -355,7 +355,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         <div className="text-center pb-4 border-b border-gray-100">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-banana-50 to-orange-50 rounded-full mb-3">
             <Palette size={18} className="text-banana-600" />
-            <span className="text-sm font-medium text-gray-700">蕉幻 · Banana Slides</span>
+            <span className="text-sm font-medium text-gray-700">生成 · Banana Slides</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-800">
             {currentPage === 0 ? '快速開始' : currentPage === 1 ? '功能介紹' : '結果案例'}
