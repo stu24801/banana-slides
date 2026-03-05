@@ -38,6 +38,7 @@ For each text region, return a JSON array with objects containing:
 - "x1": right edge (0.0 to 1.0, relative to image width)
 - "y1": bottom edge (0.0 to 1.0, relative to image height)
 - "type": one of "title", "bullet", "label", "other"
+- "color": approximate text color as hex string, e.g. "#FFFFFF" for white, "#1A1A1A" for near-black
 
 Rules:
 - Title: the main heading, usually large font at top
@@ -46,8 +47,8 @@ Rules:
 - Other: anything else
 
 Return ONLY a valid JSON array, no explanation. Example:
-[{"text": "Main Title", "x0": 0.05, "y0": 0.05, "x1": 0.90, "y1": 0.20, "type": "title"},
- {"text": "• First point", "x0": 0.05, "y0": 0.30, "x1": 0.85, "y1": 0.42, "type": "bullet"}]
+[{"text": "Main Title", "x0": 0.05, "y0": 0.05, "x1": 0.90, "y1": 0.20, "type": "title", "color": "#FFFFFF"},
+ {"text": "• First point", "x0": 0.05, "y0": 0.30, "x1": 0.85, "y1": 0.42, "type": "bullet", "color": "#333333"}]
 
 If there are no text regions, return [].
 """
@@ -100,6 +101,7 @@ If there are no text regions, return [].
                     "x1": max(0.0, min(1.0, float(r.get("x1", 1)))),
                     "y1": max(0.0, min(1.0, float(r.get("y1", 1)))),
                     "type": r.get("type", "other"),
+                    "color": r.get("color", "#FFFFFF"),
                 })
             except (TypeError, ValueError):
                 continue

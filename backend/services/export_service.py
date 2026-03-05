@@ -192,7 +192,7 @@ class ExportService:
 
         def _add_text_box_inches(slide, left, top, width, height,
                                   text, font_size_pt, bold=False,
-                                  color_rgb=(255, 255, 255),
+                                  color_rgb=(30, 30, 30),
                                   align=PP_ALIGN.LEFT):
             """新增透明文字框，座標單位為 inch"""
             tb = slide.shapes.add_textbox(
@@ -202,10 +202,10 @@ class ExportService:
             _set_transparent(tb)
             tf = tb.text_frame
             tf.word_wrap = True
-            tf.margin_left = Inches(0.05)
-            tf.margin_right = Inches(0.05)
-            tf.margin_top = Inches(0.02)
-            tf.margin_bottom = Inches(0.02)
+            tf.margin_left = Inches(0.03)
+            tf.margin_right = Inches(0.03)
+            tf.margin_top = Inches(0.01)
+            tf.margin_bottom = Inches(0.01)
             p = tf.paragraphs[0]
             p.alignment = align
             run = p.add_run()
@@ -213,6 +213,18 @@ class ExportService:
             run.font.size = Pt(font_size_pt)
             run.font.bold = bold
             run.font.color.rgb = RGBColor(*color_rgb)
+            # 指定中文字型（避免亂碼）
+            try:
+                from pptx.oxml.ns import qn
+                from lxml import etree
+                rPr = run._r.get_or_add_rPr()
+                # solidFill already set via color.rgb; set latin + ea font
+                latin = etree.SubElement(rPr, qn('a:latin'))
+                latin.set('typeface', 'Noto Sans CJK TC')
+                ea = etree.SubElement(rPr, qn('a:ea'))
+                ea.set('typeface', 'Noto Sans CJK TC')
+            except Exception:
+                pass
             return tb
 
         def _region_to_inches(region):
@@ -225,11 +237,11 @@ class ExportService:
 
         def _estimate_font_size(height_in, rtype):
             """根據區塊高度估算字型大小"""
-            pt = height_in * 72 * 0.65  # 72pt/inch，65% 填充率
+            pt = height_in * 72 * 0.80  # 72pt/inch，80% 填充率
             if rtype == 'title':
-                return max(18, min(48, round(pt)))
+                return max(20, min(54, round(pt)))
             else:
-                return max(10, min(28, round(pt)))
+                return max(11, min(32, round(pt)))
 
         for page in pages_data:
             image_path = page.get('image_path', '')
@@ -258,8 +270,16 @@ class ExportService:
                     left, top, w, h = _region_to_inches(region)
                     font_size = _estimate_font_size(h, rtype)
                     bold = rtype == 'title'
-                    # 字色白色（主色），label/small 用半透明白
-                    color = (255, 255, 255)
+
+                    # 使用 vision 偵測到的文字顏色
+                    hex_color = region.get('color', '#FFFFFF').lstrip('#')
+                    try:
+                        cr = int(hex_color[0:2], 16)
+                        cg = int(hex_color[2:4], 16)
+                        cb = int(hex_color[4:6], 16)
+                        color = (cr, cg, cb)
+                    except Exception:
+                        color = (255, 255, 255)
 
                     _add_text_box_inches(
                         slide, left, top, w, h,
