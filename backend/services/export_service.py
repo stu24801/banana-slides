@@ -135,6 +135,134 @@ class ExportService:
     # 使用方式: from services.image_editability import InpaintProviderFactory
     
     @staticmethod
+    def create_pptx_with_text_overlay(
+        pages_data: List[Dict[str, Any]],
+        output_file: str = None
+    ):
+        """
+        建立帶有可編輯文字覆蓋層的 PPTX。
+        每頁結構：底層=投影片圖片，上層=透明可編輯文字框（標題 + bullet points）。
+        
+        Args:
+            pages_data: 每頁資料，格式為：
+                [{"image_path": str, "title": str, "points": [str, ...]}, ...]
+            output_file: 輸出路徑（若為 None 則回傳 bytes）
+        
+        Returns:
+            若 output_file 為 None，回傳 PPTX bytes；否則存檔並回傳 None
+        """
+        from pptx.util import Inches, Pt, Emu
+        from pptx.dml.color import RGBColor
+        from pptx.enum.text import PP_ALIGN
+        from pptx.oxml.ns import qn
+        from lxml import etree
+
+        SLIDE_W = Inches(10)
+        SLIDE_H = Inches(5.625)
+
+        prs = Presentation()
+        try:
+            core = prs.core_properties
+            now = datetime.now(timezone.utc)
+            core.author = "banana-slides"
+            core.last_modified_by = "banana-slides"
+            core.created = now
+            core.modified = now
+        except Exception:
+            pass
+
+        prs.slide_width = SLIDE_W
+        prs.slide_height = SLIDE_H
+
+        def _set_transparent(shape):
+            """將 shape 填充設為完全透明，框線設為無"""
+            fill = shape.fill
+            fill.background()  # 透明背景
+            ln = shape.line
+            ln.fill.background()  # 無框線
+
+        def _add_text_box(slide, left_in, top_in, w_in, h_in,
+                          text, font_size_pt, bold=False,
+                          color_rgb=(255, 255, 255),
+                          align=PP_ALIGN.LEFT):
+            """新增透明文字框"""
+            from pptx.util import Inches, Pt
+            tb = slide.shapes.add_textbox(
+                Inches(left_in), Inches(top_in),
+                Inches(w_in), Inches(h_in)
+            )
+            _set_transparent(tb)
+            tf = tb.text_frame
+            tf.word_wrap = True
+            tf.margin_left = Inches(0)
+            tf.margin_right = Inches(0)
+            tf.margin_top = Inches(0)
+            tf.margin_bottom = Inches(0)
+
+            p = tf.paragraphs[0]
+            p.alignment = align
+            run = p.add_run()
+            run.text = text
+            run.font.size = Pt(font_size_pt)
+            run.font.bold = bold
+            run.font.color.rgb = RGBColor(*color_rgb)
+            return tb
+
+        for page in pages_data:
+            image_path = page.get('image_path', '')
+            title = page.get('title', '')
+            points = page.get('points', [])
+
+            blank_layout = prs.slide_layouts[6]
+            slide = prs.slides.add_slide(blank_layout)
+
+            # ── 底層：投影片圖片 ────────────────────────────────────────────────
+            if image_path and os.path.exists(image_path):
+                slide.shapes.add_picture(image_path, 0, 0, SLIDE_W, SLIDE_H)
+            else:
+                logger.warning(f"圖片不存在，跳過：{image_path}")
+
+            # ── 上層：可編輯文字框（透明） ─────────────────────────────────────
+            # 標題框：左上角，佔整頁寬，高度約 1.1 吋
+            if title:
+                _add_text_box(
+                    slide,
+                    left_in=0.3, top_in=0.2,
+                    w_in=9.4, h_in=1.1,
+                    text=title,
+                    font_size_pt=32,
+                    bold=True,
+                    color_rgb=(255, 255, 255),
+                    align=PP_ALIGN.LEFT
+                )
+
+            # Bullet points 框：標題下方，佔主體區域
+            if points:
+                bullets_text = '\n'.join(
+                    f'• {pt}' if not pt.startswith('•') else pt
+                    for pt in points
+                )
+                _add_text_box(
+                    slide,
+                    left_in=0.4, top_in=1.5,
+                    w_in=9.2, h_in=3.8,
+                    text=bullets_text,
+                    font_size_pt=18,
+                    bold=False,
+                    color_rgb=(255, 255, 255),
+                    align=PP_ALIGN.LEFT
+                )
+
+        if output_file:
+            prs.save(output_file)
+            return None
+        else:
+            buf = io.BytesIO()
+            prs.save(buf)
+            buf.seek(0)
+            return buf.getvalue()
+
+    @staticmethod
     def create_pptx_from_images(image_paths: List[str], output_file: str = None) -> bytes:
         """
         Create PPTX file from image paths

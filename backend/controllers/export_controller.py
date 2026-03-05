@@ -54,20 +54,24 @@ def export_pptx(project_id):
         if not pages:
             return bad_request("No pages found for project")
         
-        # Get image paths
+        # Build pages_data with image paths + outline text
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
-        
-        image_paths = []
+        pages_data = []
         for page in pages:
-            if page.generated_image_path:
-                abs_path = file_service.get_absolute_path(page.generated_image_path)
-                image_paths.append(abs_path)
-        
-        if not image_paths:
+            if not page.generated_image_path:
+                continue
+            abs_path = file_service.get_absolute_path(page.generated_image_path)
+            outline = page.get_outline_content() or {}
+            pages_data.append({
+                'image_path': abs_path,
+                'title': outline.get('title', ''),
+                'points': outline.get('points', []),
+            })
+
+        if not pages_data:
             return bad_request("No generated images found for project")
         
         # Determine export directory and filename
-        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
         exports_dir = file_service._get_exports_dir(project_id)
         
         # Get filename from query params or use default
@@ -77,8 +81,8 @@ def export_pptx(project_id):
 
         output_path = os.path.join(exports_dir, filename)
 
-        # Generate PPTX file on disk
-        ExportService.create_pptx_from_images(image_paths, output_file=output_path)
+        # Generate PPTX with text overlay (image bg + editable text layer)
+        ExportService.create_pptx_with_text_overlay(pages_data, output_file=output_path)
 
         # Build download URLs
         download_path = f"/files/{project_id}/exports/{filename}"
