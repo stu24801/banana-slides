@@ -437,8 +437,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                                     os.path.basename(abs_img_path), bg_filename
                                 )
                                 # 更新資料庫（已在 app_context 內）
-                                from models import db, Page as _PageModel
-                                _p = _PageModel.query.get(page_id)
+                                _p = Page.query.get(page_id)
                                 if _p:
                                     _p.bg_image_path = bg_rel_path
                                     db.session.commit()
