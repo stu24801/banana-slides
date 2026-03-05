@@ -51,7 +51,7 @@ class ReferenceFile(db.Model):
         if include_content:
             result['markdown_content'] = self.markdown_content
         
-        # 只有明确要求且文件已解析完成时才计算失败数
+        # 只有明確要求且檔案已解析完成時才計算失敗數
         if include_failed_count and self.parse_status == 'completed':
             result['image_caption_failed_count'] = self.count_failed_image_captions()
         

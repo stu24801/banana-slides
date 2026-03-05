@@ -18,7 +18,7 @@ depends_on = None
 
 
 def _column_exists(table_name: str, column_name: str) -> bool:
-    """检查列是否存在"""
+    """檢查列是否存在"""
     bind = op.get_bind()
     inspector = inspect(bind)
     columns = [col['name'] for col in inspector.get_columns(table_name)]

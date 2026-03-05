@@ -3,14 +3,14 @@ import { twMerge } from 'tailwind-merge';
 import type { Project, Page } from '@/types';
 
 /**
- * 合并 className (支持 Tailwind CSS)
+ * 合併 className (支援 Tailwind CSS)
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * 标准化后端返回的项目数据
+ * 標準化後端返回的專案資料
  */
 export function normalizeProject(data: any): Project {
   return {
@@ -22,7 +22,7 @@ export function normalizeProject(data: any): Project {
 }
 
 /**
- * 标准化后端返回的页面数据
+ * 標準化後端返回的頁面資料
  */
 export function normalizePage(data: any): Page {
   return {
@@ -33,7 +33,7 @@ export function normalizePage(data: any): Page {
 }
 
 /**
- * 防抖函数
+ * 防抖函式
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
@@ -47,7 +47,7 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 /**
- * 节流函数
+ * 節流函式
  */
 export function throttle<T extends (...args: any[]) => any>(
   func: T,
@@ -64,7 +64,7 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 /**
- * 下载文件
+ * 下載檔案
  */
 export function downloadFile(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
@@ -99,19 +99,19 @@ export function generateId(): string {
 }
 
 /**
- * 将错误消息转换为友好的中文提示
+ * 將錯誤訊息轉換為友好的中文提示
  */
 export function normalizeErrorMessage(errorMessage: string | null | undefined): string {
-  if (!errorMessage) return '操作失败';
+  if (!errorMessage) return '操作失敗';
   
   const message = errorMessage.toLowerCase();
   
   if (message.includes('no template image found')) {
-    return '当前项目还没有模板，请先点击页面工具栏的"更换模板"按钮，选择或上传一张模板图片后再生成。';
+    return '當前專案還沒有模板，請先點選頁面工具欄的"更換模板"按鈕，選擇或上傳一張模板圖片後再生成。';
   } else if (message.includes('page must have description content')) {
-    return '该页面还没有描述内容，请先在"编辑页面描述"步骤为此页生成或填写描述。';
+    return '該頁面還沒有描述內容，請先在"編輯頁面描述"步驟為此頁生成或填寫描述。';
   } else if (message.includes('image already exists')) {
-    return '该页面已经有图片，如需重新生成，请在生成时选择"重新生成"或稍后重试。';
+    return '該頁面已經有圖片，如需重新生成，請在生成時選擇"重新生成"或稍後重試。';
   }
   
   return errorMessage;

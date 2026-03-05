@@ -174,23 +174,23 @@ def export_pdf(project_id):
 @export_bp.route('/<project_id>/export/editable-pptx', methods=['POST'])
 def export_editable_pptx(project_id):
     """
-    POST /api/projects/{project_id}/export/editable-pptx - 导出可编辑PPTX（异步）
+    POST /api/projects/{project_id}/export/editable-pptx - 匯出可編輯PPTX（非同步）
     
-    使用递归分析方法（支持任意尺寸、递归子图分析）
+    使用遞迴分析方法（支援任意尺寸、遞迴子圖分析）
     
-    这个端点创建一个异步任务来执行以下操作：
-    1. 递归分析图片（支持任意尺寸和分辨率）
-    2. 转换为PDF并上传MinerU识别
+    這個端點建立一個非同步任務來執行以下操作：
+    1. 遞迴分析圖片（支援任意尺寸和解析度）
+    2. 轉換為PDF並上傳MinerU識別
     3. 提取元素bbox和生成clean background（inpainting）
-    4. 递归处理图片/图表中的子元素
-    5. 创建可编辑PPTX
+    4. 遞迴處理圖片/圖表中的子元素
+    5. 建立可編輯PPTX
     
     Request body (JSON):
         {
             "filename": "optional_custom_name.pptx",
-            "page_ids": ["id1", "id2"],  // 可选，要导出的页面ID列表（不提供则导出所有）
-            "max_depth": 1,      // 可选，递归深度（默认1=不递归，2=递归一层）
-            "max_workers": 4     // 可选，并发数（默认4）
+            "page_ids": ["id1", "id2"],  // 可選，要匯出的頁面ID列表（不提供則匯出所有）
+            "max_depth": 1,      // 可選，遞迴深度（預設1=不遞迴，2=遞迴一層）
+            "max_workers": 4     // 可選，併發數（預設4）
         }
     
     Returns:
@@ -206,7 +206,7 @@ def export_editable_pptx(project_id):
             "message": "Export task created"
         }
     
-    轮询 /api/projects/{project_id}/tasks/{task_id} 获取进度和下载链接
+    輪詢 /api/projects/{project_id}/tasks/{task_id} 獲取進度和下載連結
     """
     try:
         project = Project.query.get(project_id)
@@ -235,13 +235,13 @@ def export_editable_pptx(project_id):
         if not filename.endswith('.pptx'):
             filename += '.pptx'
         
-        # 递归分析参数
-        # max_depth 语义：1=只处理表层不递归，2=递归一层（处理图片/图表中的子元素）
-        max_depth = data.get('max_depth', 1)  # 默认不递归，与测试脚本一致
+        # 遞迴分析引數
+        # max_depth 語義：1=只處理表層不遞迴，2=遞迴一層（處理圖片/圖表中的子元素）
+        max_depth = data.get('max_depth', 1)  # 預設不遞迴，與測試指令碼一致
         max_workers = data.get('max_workers', 4)
         
         # Validate parameters
-        # max_depth >= 1: 至少处理表层元素
+        # max_depth >= 1: 至少處理表層元素
         if not isinstance(max_depth, int) or max_depth < 1 or max_depth > 5:
             return bad_request("max_depth must be an integer between 1 and 5")
         
@@ -268,12 +268,12 @@ def export_editable_pptx(project_id):
         # Get Flask app instance for background task
         app = current_app._get_current_object()
         
-        # 读取项目的导出设置
+        # 讀取專案的匯出設定
         export_extractor_method = project.export_extractor_method or 'hybrid'
         export_inpaint_method = project.export_inpaint_method or 'hybrid'
         logger.info(f"Export settings: extractor={export_extractor_method}, inpaint={export_inpaint_method}")
         
-        # 使用递归分析任务（不需要 ai_service，使用 ImageEditabilityService）
+        # 使用遞迴分析任務（不需要 ai_service，使用 ImageEditabilityService）
         task_manager.submit_task(
             task.id,
             export_editable_pptx_with_recursive_analysis_task,

@@ -39,6 +39,6 @@ const TextareaComponent = React.forwardRef<HTMLTextAreaElement, TextareaProps>((
 
 TextareaComponent.displayName = 'Textarea';
 
-// 使用 memo 包装，避免父组件频繁重渲染时影响输入框
+// 使用 memo 包裝，避免父元件頻繁重渲染時影響輸入框
 export const Textarea = React.memo(TextareaComponent);
 

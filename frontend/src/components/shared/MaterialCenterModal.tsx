@@ -13,13 +13,13 @@ interface MaterialCenterModalProps {
 }
 
 /**
- * 素材中心组件
- * - 浏览所有素材
- * - 支持批量选择
- * - 支持单个或批量下载（多个打包为zip）
- * - 支持按项目筛选
- * - 支持上传和删除素材
- * - 支持预览图片
+ * 素材中心元件
+ * - 瀏覽所有素材
+ * - 支援批次選擇
+ * - 支援單個或批次下載（多個打包為zip）
+ * - 支援按專案篩選
+ * - 支援上傳和刪除素材
+ * - 支援預覽圖片
  */
 export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
   isOpen,
@@ -57,7 +57,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
         setProjectsLoaded(true);
       }
     } catch (error: any) {
-      console.error('加载项目列表失败:', error);
+      console.error('載入專案列表失敗:', error);
     }
   };
 
@@ -79,9 +79,9 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
         setMaterials(response.data.materials);
       }
     } catch (error: any) {
-      console.error('加载素材列表失败:', error);
+      console.error('載入素材列表失敗:', error);
       show({
-        message: error?.response?.data?.error?.message || error.message || '加载素材列表失败',
+        message: error?.response?.data?.error?.message || error.message || '載入素材列表失敗',
         type: 'error',
       });
     } finally {
@@ -102,10 +102,10 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
 
   const handleSelectAll = () => {
     if (selectedMaterials.size === materials.length) {
-      // 全部取消选择
+      // 全部取消選擇
       setSelectedMaterials(new Set());
     } else {
-      // 全选
+      // 全選
       setSelectedMaterials(new Set(materials.map(m => getMaterialKey(m))));
     }
   };
@@ -120,7 +120,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
 
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
-      show({ message: '不支持的图片格式', type: 'error' });
+      show({ message: '不支援的圖片格式', type: 'error' });
       return;
     }
 
@@ -133,13 +133,13 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
       const response = await uploadMaterial(file, targetProjectId);
 
       if (response.data) {
-        show({ message: '素材上传成功', type: 'success' });
+        show({ message: '素材上傳成功', type: 'success' });
         loadMaterials();
       }
     } catch (error: any) {
-      console.error('上传素材失败:', error);
+      console.error('上傳素材失敗:', error);
       show({
-        message: error?.response?.data?.error?.message || error.message || '上传素材失败',
+        message: error?.response?.data?.error?.message || error.message || '上傳素材失敗',
         type: 'error',
       });
     } finally {
@@ -157,7 +157,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
     const key = getMaterialKey(material);
 
     if (!materialId) {
-      show({ message: '无法删除：缺少素材ID', type: 'error' });
+      show({ message: '無法刪除：缺少素材ID', type: 'error' });
       return;
     }
 
@@ -175,11 +175,11 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
         next.delete(key);
         return next;
       });
-      show({ message: '素材已删除', type: 'success' });
+      show({ message: '素材已刪除', type: 'success' });
     } catch (error: any) {
-      console.error('删除素材失败:', error);
+      console.error('刪除素材失敗:', error);
       show({
-        message: error?.response?.data?.error?.message || error.message || '删除素材失败',
+        message: error?.response?.data?.error?.message || error.message || '刪除素材失敗',
         type: 'error',
       });
     } finally {
@@ -191,17 +191,17 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
     }
   };
 
-  // 下载选中的素材
+  // 下載選中的素材
   const handleDownload = async () => {
     if (selectedMaterials.size === 0) {
-      show({ message: '请先选择要下载的素材', type: 'info' });
+      show({ message: '請先選擇要下載的素材', type: 'info' });
       return;
     }
 
     const selectedList = materials.filter(m => selectedMaterials.has(getMaterialKey(m)));
 
     if (selectedList.length === 1) {
-      // 单个素材直接下载
+      // 單個素材直接下載
       const material = selectedList[0];
       const imageUrl = getImageUrl(material.url);
 
@@ -216,22 +216,22 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        show({ message: '下载成功', type: 'success' });
+        show({ message: '下載成功', type: 'success' });
       } catch (error: any) {
-        console.error('下载失败:', error);
-        show({ message: '下载失败', type: 'error' });
+        console.error('下載失敗:', error);
+        show({ message: '下載失敗', type: 'error' });
       }
     } else {
-      // 多个素材打包下载
+      // 多個素材打包下載
       setIsDownloading(true);
       try {
         const materialIds = selectedList.map(m => m.id);
         await downloadMaterialsZip(materialIds);
-        show({ message: `已打包 ${selectedList.length} 个素材`, type: 'success' });
+        show({ message: `已打包 ${selectedList.length} 個素材`, type: 'success' });
       } catch (error: any) {
-        console.error('批量下载失败:', error);
+        console.error('批次下載失敗:', error);
         show({
-          message: error?.response?.data?.error?.message || error.message || '批量下载失败',
+          message: error?.response?.data?.error?.message || error.message || '批次下載失敗',
           type: 'error',
         });
       } finally {
@@ -240,7 +240,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
     }
   };
 
-  // 预览图片
+  // 預覽圖片
   const handlePreview = (e: React.MouseEvent, material: Material) => {
     e.stopPropagation();
     setPreviewImage({
@@ -250,21 +250,21 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
   };
 
   const renderProjectLabel = (p: Project) => {
-    const text = p.idea_prompt || p.outline_text || `项目 ${p.project_id.slice(0, 8)}`;
+    const text = p.idea_prompt || p.outline_text || `專案 ${p.project_id.slice(0, 8)}`;
     return text.length > 20 ? `${text.slice(0, 20)}…` : text;
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="素材中心" size="lg">
       <div className="space-y-4">
-        {/* 工具栏 */}
+        {/* 工具欄 */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <FolderOpen size={16} className="text-banana-500" />
-            <span>{materials.length > 0 ? `共 ${materials.length} 个素材` : '暂无素材'}</span>
+            <span>{materials.length > 0 ? `共 ${materials.length} 個素材` : '暫無素材'}</span>
             {selectedMaterials.size > 0 && (
               <span className="ml-2 text-banana-600 font-medium">
-                已选择 {selectedMaterials.size} 个
+                已選擇 {selectedMaterials.size} 個
               </span>
             )}
             {isLoading && materials.length > 0 && (
@@ -272,7 +272,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* 项目筛选下拉菜单 */}
+            {/* 專案篩選下拉選單 */}
             <select
               value={filterProjectId}
               onChange={(e) => {
@@ -286,7 +286,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
               className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-banana-500 w-40 sm:w-48 max-w-[200px] truncate"
             >
               <option value="all">所有素材</option>
-              <option value="none">未关联项目</option>
+              <option value="none">未關聯專案</option>
 
               {showAllProjects ? (
                 <>
@@ -299,7 +299,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
                 </>
               ) : (
                 projects.length > 0 && (
-                  <option value="show_more">+ 查看更多项目...</option>
+                  <option value="show_more">+ 檢視更多專案...</option>
                 )
               )}
             </select>
@@ -311,14 +311,14 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
               onClick={loadMaterials}
               disabled={isLoading}
             >
-              刷新
+              重新整理
             </Button>
 
-            {/* 上传按钮 */}
+            {/* 上傳按鈕 */}
             <label className="inline-block cursor-pointer">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                 <Upload size={16} />
-                <span>{isUploading ? '上传中...' : '上传'}</span>
+                <span>{isUploading ? '上傳中...' : '上傳'}</span>
               </div>
               <input
                 type="file"
@@ -331,7 +331,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
           </div>
         </div>
 
-        {/* 批量操作栏 */}
+        {/* 批次操作欄 */}
         {materials.length > 0 && (
           <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
             <Button
@@ -339,12 +339,12 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
               size="sm"
               onClick={handleSelectAll}
             >
-              {selectedMaterials.size === materials.length ? '取消全选' : '全选'}
+              {selectedMaterials.size === materials.length ? '取消全選' : '全選'}
             </Button>
             {selectedMaterials.size > 0 && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleClear}>
-                  清空选择
+                  清空選擇
                 </Button>
                 <div className="flex-1" />
                 <Button
@@ -354,23 +354,23 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
                   onClick={handleDownload}
                   disabled={isDownloading}
                 >
-                  {isDownloading ? '打包中...' : `下载 (${selectedMaterials.size})`}
+                  {isDownloading ? '打包中...' : `下載 (${selectedMaterials.size})`}
                 </Button>
               </>
             )}
           </div>
         )}
 
-        {/* 素材网格 */}
+        {/* 素材網格 */}
         {isLoading && materials.length === 0 ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-gray-400">加载中...</div>
+            <div className="text-gray-400">載入中...</div>
           </div>
         ) : materials.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400 p-4">
             <ImageIcon size={48} className="mb-4 opacity-50" />
-            <div className="text-sm">暂无素材</div>
-            <div className="text-xs mt-1">可以上传图片或通过素材生成功能创建素材</div>
+            <div className="text-sm">暫無素材</div>
+            <div className="text-xs mt-1">可以上傳圖片或透過素材生成功能建立素材</div>
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-4 max-h-96 overflow-y-auto p-4">
@@ -393,26 +393,26 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
                     alt={getMaterialDisplayName(material)}
                     className="absolute inset-0 w-full h-full object-cover rounded-md"
                   />
-                  {/* 预览按钮 */}
+                  {/* 預覽按鈕 */}
                   <button
                     type="button"
                     onClick={(e) => handlePreview(e, material)}
                     className="absolute top-1 left-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow z-10 hover:bg-black/80"
-                    aria-label="预览素材"
+                    aria-label="預覽素材"
                   >
                     <Eye size={12} />
                   </button>
-                  {/* 删除按钮 */}
+                  {/* 刪除按鈕 */}
                   <button
                     type="button"
                     onClick={(e) => handleDeleteMaterial(e, material)}
                     disabled={isDeleting}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow z-10 disabled:opacity-60 disabled:cursor-not-allowed"
-                    aria-label="删除素材"
+                    aria-label="刪除素材"
                   >
                     {isDeleting ? <RefreshCw size={12} className="animate-spin" /> : <X size={12} />}
                   </button>
-                  {/* 选中标记 */}
+                  {/* 選中標記 */}
                   {isSelected && (
                     <div className="absolute inset-0 bg-banana-500 bg-opacity-20 flex items-center justify-center rounded-md">
                       <div className="bg-banana-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
@@ -420,7 +420,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
                       </div>
                     </div>
                   )}
-                  {/* 悬停时显示文件名 */}
+                  {/* 懸停時顯示檔名 */}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate opacity-0 group-hover:opacity-100 transition-opacity rounded-b-md">
                     {getMaterialDisplayName(material)}
                   </div>
@@ -433,12 +433,12 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
         {/* 底部操作 */}
         <div className="pt-4 border-t flex justify-end">
           <Button variant="ghost" onClick={onClose}>
-            关闭
+            關閉
           </Button>
         </div>
       </div>
 
-      {/* 图片预览模态框 */}
+      {/* 圖片預覽模態框 */}
       {previewImage && (
         <div
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]"
@@ -449,7 +449,7 @@ export const MaterialCenterModal: React.FC<MaterialCenterModalProps> = ({
               type="button"
               onClick={() => setPreviewImage(null)}
               className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
-              aria-label="关闭预览"
+              aria-label="關閉預覽"
             >
               <X size={24} />
             </button>

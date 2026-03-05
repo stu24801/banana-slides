@@ -79,7 +79,7 @@ class GenAITextProvider(TextProvider):
         Returns:
             Generated text
         """
-        # 构建配置，只有在 thinking_budget > 0 时才启用推理模式
+        # 構建配置，只有在 thinking_budget > 0 時才啟用推理模式
         config_params = {}
         if thinking_budget > 0:
             config_params['thinking_config'] = types.ThinkingConfig(thinking_budget=thinking_budget)
@@ -110,13 +110,13 @@ class GenAITextProvider(TextProvider):
         """
         from PIL import Image
         
-        # 加载图片
+        # 載入圖片
         img = Image.open(image_path)
         
-        # 构建多模态内容
+        # 構建多模態內容
         contents = [img, prompt]
         
-        # 构建配置，只有在 thinking_budget > 0 时才启用推理模式
+        # 構建配置，只有在 thinking_budget > 0 時才啟用推理模式
         config_params = {}
         if thinking_budget > 0:
             config_params['thinking_config'] = types.ThinkingConfig(thinking_budget=thinking_budget)

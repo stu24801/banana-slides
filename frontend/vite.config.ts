@@ -9,17 +9,18 @@ const __dirname = path.dirname(__filename)
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // 从项目根目录读取 .env 文件（相对于 frontend 目录的上一级）
+  // 從專案根目錄讀取 .env 檔案（相對於 frontend 目錄的上一級）
   const envDir = path.resolve(__dirname, '..')
   
-  // 使用 loadEnv 加载环境变量（第三个参数为空字符串表示加载所有变量，不仅仅是 VITE_ 前缀的）
+  // 使用 loadEnv 載入環境變數（第三個引數為空字串表示載入所有變數，不僅僅是 VITE_ 字首的）
   const env = loadEnv(mode, envDir, '')
   
-  // 读取后端端口，默认 5000
+  // 讀取後端埠，預設 5000
   const backendPort = env.BACKEND_PORT || '5000'
   const backendUrl = `http://localhost:${backendPort}`
   
   return {
+    base: '/slides/',
     envDir,
     plugins: [react()],
     resolve: {
@@ -29,32 +30,32 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
-      host: true, // 监听所有地址
+      host: true, // 監聽所有地址
       watch: {
-        usePolling: true, // WSL 环境下需要启用轮询
+        usePolling: true, // WSL 環境下需要啟用輪詢
       },
       hmr: {
-        overlay: true, // 显示错误覆盖层
+        overlay: true, // 顯示錯誤覆蓋層
       },
       proxy: {
-        // API 请求代理到后端（端口从环境变量 BACKEND_PORT 读取）
+        // API 請求代理到後端（埠從環境變數 BACKEND_PORT 讀取）
         '/api': {
           target: backendUrl,
           changeOrigin: true,
         },
-        // 文件服务代理到后端
+        // 檔案服務代理到後端
         '/files': {
           target: backendUrl,
           changeOrigin: true,
         },
-        // 健康检查代理到后端
+        // 健康檢查代理到後端
         '/health': {
           target: backendUrl,
           changeOrigin: true,
         },
       },
     },
-    // Vitest 测试配置
+    // Vitest 測試配置
     test: {
       globals: true,
       environment: 'jsdom',

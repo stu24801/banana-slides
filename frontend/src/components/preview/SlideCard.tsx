@@ -37,7 +37,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       }`}
       onClick={onClick}
     >
-      {/* 缩略图 */}
+      {/* 縮圖 */}
       <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-2">
         {generating ? (
           <Skeleton className="w-full h-full" />
@@ -48,7 +48,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
               alt={`Slide ${index + 1}`}
               className="w-full h-full object-cover"
             />
-            {/* 悬停操作 */}
+            {/* 懸停操作 */}
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <button
                 onClick={(e) => {
@@ -63,9 +63,9 @@ export const SlideCard: React.FC<SlideCardProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   confirm(
-                    '确定要删除这一页吗？',
+                    '確定要刪除這一頁嗎？',
                     onDelete,
-                    { title: '确认删除', variant: 'danger' }
+                    { title: '確認刪除', variant: 'danger' }
                   );
                 }}
                 className="p-2 bg-white rounded-lg hover:bg-red-50 transition-colors"
@@ -83,13 +83,13 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           </div>
         )}
         
-        {/* 状态标签 */}
+        {/* 狀態標籤 */}
         <div className="absolute bottom-2 right-2">
           <StatusBadge status={page.status} />
         </div>
       </div>
 
-      {/* 标题 */}
+      {/* 標題 */}
       <div className="flex items-center gap-2">
         <span
           className={`text-sm font-medium ${

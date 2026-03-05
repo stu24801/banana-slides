@@ -1,137 +1,137 @@
 # 蕉幻 (Banana Slides) 前端
 
-这是蕉幻 AI PPT 生成器的前端应用。
+這是蕉幻 AI PPT 生成器的前端應用。
 
-## 技术栈
+## 技術棧
 
 - **框架**: React 18 + TypeScript
-- **构建工具**: Vite
-- **状态管理**: Zustand
-- **样式**: TailwindCSS
+- **構建工具**: Vite
+- **狀態管理**: Zustand
+- **樣式**: TailwindCSS
 - **路由**: React Router
 - **拖拽**: @dnd-kit
-- **图标**: Lucide React
+- **圖示**: Lucide React
 
-## 开始开发
+## 開始開發
 
-### 1. 安装依赖
+### 1. 安裝依賴
 
 ```bash
 npm install
 ```
 
-### 2. 配置环境变量
+### 2. 配置環境變數
 
-**注意**：现在不再需要配置 `VITE_API_BASE_URL`！
+**注意**：現在不再需要配置 `VITE_API_BASE_URL`！
 
-前端使用相对路径，通过代理自动转发到后端：
-- **开发环境**：通过 Vite proxy 自动转发到后端
-- **生产环境**：通过 nginx proxy 自动转发到后端服务
+前端使用相對路徑，透過代理自動轉發到後端：
+- **開發環境**：透過 Vite proxy 自動轉發到後端
+- **生產環境**：透過 nginx proxy 自動轉發到後端服務
 
-**一键修改后端端口**：
-只需在项目根目录的 `.env` 文件中修改 `BACKEND_PORT` 环境变量（默认 5000），前端和后端都会自动使用新端口：
+**一鍵修改後端埠**：
+只需在專案根目錄的 `.env` 檔案中修改 `BACKEND_PORT` 環境變數（預設 5000），前端和後端都會自動使用新埠：
 
 ```env
-BACKEND_PORT=8080  # 修改为 8080 或其他端口
+BACKEND_PORT=8080  # 修改為 8080 或其他埠
 ```
 
-这样无论后端运行在什么地址（localhost、IP 或域名），前端都能自动适配，无需手动配置。
+這樣無論後端執行在什麼地址（localhost、IP 或域名），前端都能自動適配，無需手動配置。
 
-### 3. 启动开发服务器
+### 3. 啟動開發伺服器
 
 ```bash
 npm run dev
 ```
 
-应用将在 http://localhost:3000 启动
+應用將在 http://localhost:3000 啟動
 
-### 4. 构建生产版本
+### 4. 構建生產版本
 
 ```bash
 npm run build
 ```
 
-## 项目结构
+## 專案結構
 
 ```
 src/
-├── api/              # API 封装
-│   ├── client.ts     # Axios 实例配置
-│   └── endpoints.ts  # API 端点
-├── components/       # 组件
-│   ├── shared/       # 通用组件
-│   ├── outline/      # 大纲编辑组件
-│   └── preview/      # 预览组件
-├── pages/            # 页面
-│   ├── Home.tsx      # 首页
-│   ├── OutlineEditor.tsx    # 大纲编辑页
-│   ├── DetailEditor.tsx     # 详细描述编辑页
-│   └── SlidePreview.tsx     # 预览页
-├── store/            # 状态管理
+├── api/              # API 封裝
+│   ├── client.ts     # Axios 例項配置
+│   └── endpoints.ts  # API 端點
+├── components/       # 元件
+│   ├── shared/       # 通用元件
+│   ├── outline/      # 大綱編輯元件
+│   └── preview/      # 預覽元件
+├── pages/            # 頁面
+│   ├── Home.tsx      # 首頁
+│   ├── OutlineEditor.tsx    # 大綱編輯頁
+│   ├── DetailEditor.tsx     # 詳細描述編輯頁
+│   └── SlidePreview.tsx     # 預覽頁
+├── store/            # 狀態管理
 │   └── useProjectStore.ts
-├── types/            # TypeScript 类型
+├── types/            # TypeScript 型別
 │   └── index.ts
-├── utils/            # 工具函数
+├── utils/            # 工具函式
 │   └── index.ts
-├── App.tsx           # 应用入口
-├── main.tsx          # React 挂载点
-└── index.css         # 全局样式
+├── App.tsx           # 應用入口
+├── main.tsx          # React 掛載點
+└── index.css         # 全域性樣式
 ```
 
 ## 主要功能
 
-### 1. 首页 (/)
-- 三种创建方式：一句话生成、从大纲生成、从描述生成
-- 风格模板选择和上传
+### 1. 首頁 (/)
+- 三種建立方式：一句話生成、從大綱生成、從描述生成
+- 風格模板選擇和上傳
 
-### 2. 大纲编辑页 (/project/:id/outline)
-- 拖拽排序页面
-- 编辑大纲内容
-- 自动生成大纲
+### 2. 大綱編輯頁 (/project/:id/outline)
+- 拖拽排序頁面
+- 編輯大綱內容
+- 自動生成大綱
 
-### 3. 详细描述编辑页 (/project/:id/detail)
-- 批量生成页面描述
-- 编辑单页描述
-- 网格展示所有页面
+### 3. 詳細描述編輯頁 (/project/:id/detail)
+- 批次生成頁面描述
+- 編輯單頁描述
+- 網格展示所有頁面
 
-### 4. 预览页 (/project/:id/preview)
-- 查看生成的图片
-- 编辑单页（自然语言修改）
-- 导出为 PPTX/PDF
+### 4. 預覽頁 (/project/:id/preview)
+- 檢視生成的圖片
+- 編輯單頁（自然語言修改）
+- 匯出為 PPTX/PDF
 
-## 开发注意事项
+## 開發注意事項
 
-### 状态管理
-- 使用 Zustand 进行全局状态管理
-- 关键状态会同步到 localStorage
-- 页面刷新后自动恢复项目
+### 狀態管理
+- 使用 Zustand 進行全域性狀態管理
+- 關鍵狀態會同步到 localStorage
+- 頁面重新整理後自動恢復專案
 
-### 异步任务
-- 使用轮询机制监控长时间任务
-- 显示实时进度
-- 完成后自动刷新数据
+### 非同步任務
+- 使用輪詢機制監控長時間任務
+- 顯示實時進度
+- 完成後自動重新整理資料
 
-### 图片处理
-- 所有图片路径需通过 `getImageUrl()` 处理
-- 支持相对路径和绝对路径
+### 圖片處理
+- 所有圖片路徑需透過 `getImageUrl()` 處理
+- 支援相對路徑和絕對路徑
 
 ### 拖拽功能
-- 使用 @dnd-kit 实现
-- 支持键盘操作
-- 乐观更新 UI
+- 使用 @dnd-kit 實現
+- 支援鍵盤操作
+- 樂觀更新 UI
 
-## 与后端集成
+## 與後端整合
 
-确保后端服务运行在配置的端口（默认 5000）：
+確保後端服務執行在配置的埠（預設 5000）：
 
 ```bash
 cd ../backend
 python app.py
 ```
 
-## 浏览器支持
+## 瀏覽器支援
 
-- Chrome (推荐)
+- Chrome (推薦)
 - Firefox
 - Safari
 - Edge

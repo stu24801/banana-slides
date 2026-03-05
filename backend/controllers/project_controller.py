@@ -76,9 +76,9 @@ def _reconstruct_outline_from_pages(pages: list) -> list:
             
         page_data = outline_content.copy()
         
-        # 如果当前页面属于一个 part
+        # 如果當前頁面屬於一個 part
         if page.part:
-            # 如果这是新的 part，先保存之前的 part（如果有）
+            # 如果這是新的 part，先儲存之前的 part（如果有）
             if current_part and current_part != page.part:
                 outline.append({
                     "part": current_part,
@@ -87,12 +87,12 @@ def _reconstruct_outline_from_pages(pages: list) -> list:
                 current_part_pages = []
             
             current_part = page.part
-            # 移除 part 字段，因为它在顶层
+            # 移除 part 欄位，因為它在頂層
             if 'part' in page_data:
                 del page_data['part']
             current_part_pages.append(page_data)
         else:
-            # 如果当前页面不属于任何 part，先保存之前的 part（如果有）
+            # 如果當前頁面不屬於任何 part，先儲存之前的 part（如果有）
             if current_part:
                 outline.append({
                     "part": current_part,
@@ -101,10 +101,10 @@ def _reconstruct_outline_from_pages(pages: list) -> list:
                 current_part = None
                 current_part_pages = []
             
-            # 直接添加页面
+            # 直接新增頁面
             outline.append(page_data)
     
-    # 保存最后一个 part（如果有）
+    # 儲存最後一個 part（如果有）
     if current_part:
         outline.append({
             "part": current_part,
@@ -374,9 +374,9 @@ def generate_outline(project_id):
         else:
             logger.info(f"No reference files found for project {project_id}")
         
-        # 根据项目类型选择不同的处理方式
+        # 根據專案型別選擇不同的處理方式
         if project.creation_type == 'outline':
-            # 从大纲生成：解析用户输入的大纲文本
+            # 從大綱生成：解析使用者輸入的大綱文字
             if not project.outline_text:
                 return bad_request("outline_text is required for outline type project")
             
@@ -384,10 +384,10 @@ def generate_outline(project_id):
             project_context = ProjectContext(project, reference_files_content)
             outline = ai_service.parse_outline_text(project_context, language=language)
         elif project.creation_type == 'descriptions':
-            # 从描述生成：这个类型应该使用专门的端点
+            # 從描述生成：這個型別應該使用專門的端點
             return bad_request("Use /generate/from-description endpoint for descriptions type")
         else:
-            # 一句话生成：从idea生成大纲
+            # 一句話生成：從idea生成大綱
             idea_prompt = data.get('idea_prompt') or project.idea_prompt
             
             if not idea_prompt:
@@ -431,7 +431,7 @@ def generate_outline(project_id):
         
         db.session.commit()
         
-        logger.info(f"大纲生成完成: 项目 {project_id}, 创建了 {len(pages_list)} 个页面")
+        logger.info(f"大綱生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面")
         
         # Return pages
         return success_response({
@@ -488,24 +488,24 @@ def generate_from_description(project_id):
         reference_files_content = _get_project_reference_files_content(project_id)
         project_context = ProjectContext(project, reference_files_content)
         
-        logger.info(f"开始从描述生成大纲和页面描述: 项目 {project_id}")
+        logger.info(f"開始從描述生成大綱和頁面描述: 專案 {project_id}")
         
         # Step 1: Parse description to outline
-        logger.info("Step 1: 解析描述文本到大纲结构...")
+        logger.info("Step 1: 解析描述文字到大綱結構...")
         outline = ai_service.parse_description_to_outline(project_context, language=language)
-        logger.info(f"大纲解析完成，共 {len(ai_service.flatten_outline(outline))} 页")
+        logger.info(f"大綱解析完成，共 {len(ai_service.flatten_outline(outline))} 頁")
         
         # Step 2: Split description into page descriptions
-        logger.info("Step 2: 切分描述文本到每页描述...")
+        logger.info("Step 2: 切分描述文字到每頁描述...")
         page_descriptions = ai_service.parse_description_to_page_descriptions(project_context, outline, language=language)
-        logger.info(f"描述切分完成，共 {len(page_descriptions)} 页")
+        logger.info(f"描述切分完成，共 {len(page_descriptions)} 頁")
         
         # Step 3: Flatten outline to pages
         pages_data = ai_service.flatten_outline(outline)
         
         if len(pages_data) != len(page_descriptions):
-            logger.warning(f"页面数量不匹配: 大纲 {len(pages_data)} 页, 描述 {len(page_descriptions)} 页")
-            # 取较小的数量，避免索引错误
+            logger.warning(f"頁面數量不匹配: 大綱 {len(pages_data)} 頁, 描述 {len(page_descriptions)} 頁")
+            # 取較小的數量，避免索引錯誤
             min_count = min(len(pages_data), len(page_descriptions))
             pages_data = pages_data[:min_count]
             page_descriptions = page_descriptions[:min_count]
@@ -522,7 +522,7 @@ def generate_from_description(project_id):
                 project_id=project_id,
                 order_index=i,
                 part=page_data.get('part'),
-                status='DESCRIPTION_GENERATED'  # 直接设置为已生成描述
+                status='DESCRIPTION_GENERATED'  # 直接設定為已生成描述
             )
             
             # Set outline content
@@ -547,7 +547,7 @@ def generate_from_description(project_id):
         
         db.session.commit()
         
-        logger.info(f"从描述生成完成: 项目 {project_id}, 创建了 {len(pages_list)} 个页面，已填充大纲和描述")
+        logger.info(f"從描述生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面，已填充大綱和描述")
         
         # Return pages
         return success_response({
@@ -594,7 +594,7 @@ def generate_descriptions(project_id):
         outline = _reconstruct_outline_from_pages(pages)
         
         data = request.get_json() or {}
-        # 从配置中读取默认并发数，如果请求中提供了则使用请求的值
+        # 從配置中讀取預設併發數，如果請求中提供了則使用請求的值
         max_workers = data.get('max_workers', current_app.config.get('MAX_DESCRIPTION_WORKERS', 5))
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
         
@@ -686,7 +686,7 @@ def generate_images(project_id):
         if not pages:
             return bad_request("No pages found for project")
         
-        # 检查是否有模板图片或风格描述
+        # 檢查是否有模板圖片或風格描述
         from services import FileService
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
         use_template = data.get('use_template', True)
@@ -695,12 +695,12 @@ def generate_images(project_id):
             ref_image_path = file_service.get_template_path(project_id)
         
         if not ref_image_path and not project.template_style:
-            return bad_request("请先上传模板图片或添加风格描述。")
+            return bad_request("請先上傳模板圖片或新增風格描述。")
         
         # Reconstruct outline from pages with part structure
         outline = _reconstruct_outline_from_pages(pages)
         
-        # 从配置中读取默认并发数，如果请求中提供了则使用请求的值
+        # 從配置中讀取預設併發數，如果請求中提供了則使用請求的值
         max_workers = data.get('max_workers', current_app.config.get('MAX_IMAGE_WORKERS', 8))
         use_template = data.get('use_template', True)
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
@@ -723,10 +723,10 @@ def generate_images(project_id):
         # Get singleton AI service instance
         ai_service = get_ai_service()
         
-        # 合并额外要求和风格描述
+        # 合併額外要求和風格描述
         combined_requirements = project.extra_requirements or ""
         if project.template_style:
-            style_requirement = f"\n\nppt页面风格描述：\n\n{project.template_style}"
+            style_requirement = f"\n\nppt頁面風格描述：\n\n{project.template_style}"
             combined_requirements = combined_requirements + style_requirement
         
         # Get app instance for background task
@@ -791,7 +791,7 @@ def refine_outline(project_id):
     
     Request body:
     {
-        "user_requirement": "用户要求，例如：增加一页关于XXX的内容",
+        "user_requirement": "使用者要求，例如：增加一頁關於XXX的內容",
         "language": "zh"  # output language: zh, en, ja, auto
     }
     """
@@ -815,10 +815,10 @@ def refine_outline(project_id):
         # Get current outline from pages
         pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
         
-        # Reconstruct current outline from pages (如果没有页面，使用空列表)
+        # Reconstruct current outline from pages (如果沒有頁面，使用空列表)
         if not pages:
-            logger.info(f"项目 {project_id} 当前没有页面，将从空开始生成")
-            current_outline = []  # 空大纲
+            logger.info(f"專案 {project_id} 當前沒有頁面，將從空開始生成")
+            current_outline = []  # 空大綱
         else:
             current_outline = _reconstruct_outline_from_pages(pages)
         
@@ -841,7 +841,7 @@ def refine_outline(project_id):
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
         
         # Refine outline
-        logger.info(f"开始修改大纲: 项目 {project_id}, 用户要求: {user_requirement}, 历史要求数: {len(previous_requirements)}")
+        logger.info(f"開始修改大綱: 專案 {project_id}, 使用者要求: {user_requirement}, 歷史要求數: {len(previous_requirements)}")
         refined_outline = ai_service.refine_outline(
             current_outline=current_outline,
             user_requirement=user_requirement,
@@ -853,10 +853,10 @@ def refine_outline(project_id):
         # Flatten outline to pages
         pages_data = ai_service.flatten_outline(refined_outline)
         
-        # 在删除旧页面之前，先保存已有的页面描述（按标题匹配）
+        # 在刪除舊頁面之前，先儲存已有的頁面描述（按標題匹配）
         old_pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
         descriptions_map = {}  # {title: description_content}
-        old_status_map = {}  # {title: status} 用于保留状态
+        old_status_map = {}  # {title: status} 用於保留狀態
         
         for old_page in old_pages:
             old_outline = old_page.get_outline_content()
@@ -864,7 +864,7 @@ def refine_outline(project_id):
                 title = old_outline.get('title')
                 if old_page.description_content:
                     descriptions_map[title] = old_page.description_content
-                # 如果旧页面已经有描述，保留状态
+                # 如果舊頁面已經有描述，保留狀態
                 if old_page.status in ['DESCRIPTION_GENERATED', 'IMAGE_GENERATED']:
                     old_status_map[title] = old_page.status
         
@@ -890,12 +890,12 @@ def refine_outline(project_id):
                 'points': page_data.get('points', [])
             })
             
-            # 尝试匹配并恢复已有的描述
+            # 嘗試匹配並恢復已有的描述
             title = page_data.get('title')
             if title in descriptions_map:
-                # 恢复描述内容
+                # 恢復描述內容
                 page.description_content = descriptions_map[title]
-                # 恢复状态（如果有）
+                # 恢復狀態（如果有）
                 if title in old_status_map:
                     page.status = old_status_map[title]
                 else:
@@ -903,19 +903,19 @@ def refine_outline(project_id):
                 has_descriptions = True
                 preserved_count += 1
             else:
-                # 新页面或标题改变的页面，描述为空
-                # 这包括：新增的页面、合并的页面、标题改变的页面
+                # 新頁面或標題改變的頁面，描述為空
+                # 這包括：新增的頁面、合併的頁面、標題改變的頁面
                 page.status = 'DRAFT'
                 new_count += 1
             
             db.session.add(page)
             pages_list.append(page)
         
-        logger.info(f"描述匹配完成: 保留了 {preserved_count} 个页面的描述, {new_count} 个页面需要重新生成描述")
+        logger.info(f"描述匹配完成: 保留了 {preserved_count} 個頁面的描述, {new_count} 個頁面需要重新生成描述")
         
         # Update project status
-        # 如果所有页面都有描述，保持 DESCRIPTION_GENERATED 状态
-        # 否则降级为 OUTLINE_GENERATED
+        # 如果所有頁面都有描述，保持 DESCRIPTION_GENERATED 狀態
+        # 否則降級為 OUTLINE_GENERATED
         if has_descriptions and all(p.description_content for p in pages_list):
             project.status = 'DESCRIPTIONS_GENERATED'
         else:
@@ -924,12 +924,12 @@ def refine_outline(project_id):
         
         db.session.commit()
         
-        logger.info(f"大纲修改完成: 项目 {project_id}, 创建了 {len(pages_list)} 个页面")
+        logger.info(f"大綱修改完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面")
         
         # Return pages
         return success_response({
             'pages': [page.to_dict() for page in pages_list],
-            'message': '大纲修改成功'
+            'message': '大綱修改成功'
         })
     
     except Exception as e:
@@ -945,7 +945,7 @@ def refine_descriptions(project_id):
     
     Request body:
     {
-        "user_requirement": "用户要求，例如：让描述更详细一些",
+        "user_requirement": "使用者要求，例如：讓描述更詳細一些",
         "language": "zh"  # output language: zh, en, ja, auto
     }
     """
@@ -968,13 +968,13 @@ def refine_descriptions(project_id):
         pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
         
         if not pages:
-            logger.info(f"项目 {project_id} 当前没有页面，无法修改描述")
+            logger.info(f"專案 {project_id} 當前沒有頁面，無法修改描述")
             return bad_request("No pages found for project. Please generate outline first.")
         
-        # Check if pages have descriptions (允许没有描述，从空开始)
+        # Check if pages have descriptions (允許沒有描述，從空開始)
         has_descriptions = any(page.description_content for page in pages)
         if not has_descriptions:
-            logger.info(f"项目 {project_id} 当前没有描述，将基于大纲生成新描述")
+            logger.info(f"專案 {project_id} 當前沒有描述，將基於大綱生成新描述")
         
         # Reconstruct outline from pages
         outline = _reconstruct_outline_from_pages(pages)
@@ -1010,7 +1010,7 @@ def refine_descriptions(project_id):
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
         
         # Refine descriptions
-        logger.info(f"开始修改页面描述: 项目 {project_id}, 用户要求: {user_requirement}, 历史要求数: {len(previous_requirements)}")
+        logger.info(f"開始修改頁面描述: 專案 {project_id}, 使用者要求: {user_requirement}, 歷史要求數: {len(previous_requirements)}")
         refined_descriptions = ai_service.refine_descriptions(
             current_descriptions=current_descriptions,
             user_requirement=user_requirement,
@@ -1020,16 +1020,16 @@ def refine_descriptions(project_id):
             language=language
         )
         
-        # 验证返回的描述数量
+        # 驗證返回的描述數量
         if len(refined_descriptions) != len(pages):
             error_msg = ""
-            logger.error(f"AI 返回的描述数量不匹配: 期望 {len(pages)} 个页面，实际返回 {len(refined_descriptions)} 个描述。")
+            logger.error(f"AI 返回的描述數量不匹配: 期望 {len(pages)} 個頁面，實際返回 {len(refined_descriptions)} 個描述。")
             
-            # 如果 AI 试图增删页面，给出明确提示
+            # 如果 AI 試圖增刪頁面，給出明確提示
             if len(refined_descriptions) > len(pages):
-                error_msg += " 提示：如需增加页面，请在大纲页面进行操作。"
+                error_msg += " 提示：如需增加頁面，請在大綱頁面進行操作。"
             elif len(refined_descriptions) < len(pages):
-                error_msg += " 提示：如需删除页面，请在大纲页面进行操作。"
+                error_msg += " 提示：如需刪除頁面，請在大綱頁面進行操作。"
             
             return bad_request(error_msg)
         
@@ -1048,12 +1048,12 @@ def refine_descriptions(project_id):
         
         db.session.commit()
         
-        logger.info(f"页面描述修改完成: 项目 {project_id}, 更新了 {len(pages)} 个页面")
+        logger.info(f"頁面描述修改完成: 專案 {project_id}, 更新了 {len(pages)} 個頁面")
         
         # Return pages
         return success_response({
             'pages': [page.to_dict() for page in pages],
-            'message': '页面描述修改成功'
+            'message': '頁面描述修改成功'
         })
     
     except Exception as e:

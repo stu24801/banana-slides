@@ -10,7 +10,7 @@
  * 6. Click batch generate descriptions button
  * 7. Wait for descriptions to generate (visible in UI)
  * 8. Test retry single card functionality
- * 9. Click "生成图片" (Generate Images) to go to image generation page
+ * 9. Click "生成圖片" (Generate Images) to go to image generation page
  * 10. Click batch generate images button
  * 11. Wait for images to generate (visible in UI)
  * 12. Export PPT
@@ -47,11 +47,11 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     console.log('✓ Homepage loaded successfully\n')
     
     // ====================================
-    // Step 2: Ensure "一句话生成" tab is selected (it's selected by default)
+    // Step 2: Ensure "一句話生成" tab is selected (it's selected by default)
     // ====================================
-    console.log('🖱️  Step 2: Ensuring "一句话生成" tab is selected...')
-    // The "一句话生成" tab is selected by default, but we can click it to ensure it's active
-    await page.click('button:has-text("一句话生成")').catch(() => {
+    console.log('🖱️  Step 2: Ensuring "一句話生成" tab is selected...')
+    // The "一句話生成" tab is selected by default, but we can click it to ensure it's active
+    await page.click('button:has-text("一句話生成")').catch(() => {
       // If click fails, the tab might already be selected, which is fine
     })
     
@@ -64,7 +64,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // ====================================
     console.log('✍️  Step 3: Entering idea content...')
     const ideaInput = page.locator('textarea, input[type="text"]').first()
-    await ideaInput.fill('创建一份关于人工智能基础的简短PPT，包含3页：什么是AI、AI的应用、AI的未来')
+    await ideaInput.fill('建立一份關於人工智慧基礎的簡短PPT，包含3頁：什麼是AI、AI的應用、AI的未來')
     
     console.log('🚀 Clicking "Next" button...')
     await page.click('button:has-text("下一步")')
@@ -77,10 +77,10 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // Step 4: Click batch generate outline button on outline editor page
     // ====================================
     console.log('⏳ Step 4: Waiting for outline editor page to load...')
-    await page.waitForSelector('button:has-text("自动生成大纲"), button:has-text("重新生成大纲")', { timeout: 10000 })
+    await page.waitForSelector('button:has-text("自動生成大綱"), button:has-text("重新生成大綱")', { timeout: 10000 })
     
     console.log('📋 Step 4: Clicking batch generate outline button...')
-    const generateOutlineBtn = page.locator('button:has-text("自动生成大纲"), button:has-text("重新生成大纲")')
+    const generateOutlineBtn = page.locator('button:has-text("自動生成大綱"), button:has-text("重新生成大綱")')
     await generateOutlineBtn.first().click()
     console.log('✓ Clicked batch generate outline button\n')
     
@@ -90,10 +90,10 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     console.log('⏳ Step 5: Waiting for outline generation (may take 1-2 minutes)...')
     
     // Smart wait: Use expect().toPass() for retry polling
-    // Look for cards with "第 X 页" text - this is the most reliable indicator
+    // Look for cards with "第 X 頁" text - this is the most reliable indicator
     await expect(async () => {
-      // Use text pattern matching for "第 X 页" which appears in each outline card
-      const outlineItems = page.locator('text=/第 \\d+ 页/')
+      // Use text pattern matching for "第 X 頁" which appears in each outline card
+      const outlineItems = page.locator('text=/第 \\d+ 頁/')
       const count = await outlineItems.count()
       if (count === 0) {
         throw new Error('Outline items not yet visible')
@@ -102,7 +102,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     }).toPass({ timeout: 120000, intervals: [2000, 5000, 10000] })
     
     // Verify outline content
-    const outlineItems = page.locator('text=/第 \\d+ 页/')
+    const outlineItems = page.locator('text=/第 \\d+ 頁/')
     const outlineCount = await outlineItems.count()
     
     expect(outlineCount).toBeGreaterThan(0)
@@ -130,9 +130,9 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     console.log('✍️  Step 7: Clicking batch generate descriptions button...')
     
     // Wait for description editor page to load
-    await page.waitForSelector('button:has-text("批量生成描述")', { timeout: 10000 })
+    await page.waitForSelector('button:has-text("批次生成描述")', { timeout: 10000 })
     
-    const generateDescBtn = page.locator('button:has-text("批量生成描述")')
+    const generateDescBtn = page.locator('button:has-text("批次生成描述")')
     await generateDescBtn.first().click()
     console.log('✓ Clicked batch generate descriptions button\n')
     
@@ -170,12 +170,12 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       
       // Handle confirmation dialog if it appears (appears when page already has description)
       try {
-        const confirmDialog = page.locator('div[role="dialog"]:has-text("确认重新生成")')
+        const confirmDialog = page.locator('div[role="dialog"]:has-text("確認重新生成")')
         await confirmDialog.waitFor({ state: 'visible', timeout: 2000 })
         console.log('  Confirmation dialog appeared, clicking confirm...')
         
         // Click the confirm button in the dialog
-        const confirmButton = page.locator('button:has-text("确定"), button:has-text("确认")').last()
+        const confirmButton = page.locator('button:has-text("確定"), button:has-text("確認")').last()
         await confirmButton.click()
         
         // Wait for dialog to be completely hidden
@@ -215,9 +215,9 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     }
     
     // ====================================
-    // Step 10: Click "生成图片" to go to image generation page
+    // Step 10: Click "生成圖片" to go to image generation page
     // ====================================
-    console.log('➡️  Step 10: Clicking "生成图片" to go to image generation page...')
+    console.log('➡️  Step 10: Clicking "生成圖片" to go to image generation page...')
     
     // Ensure no modal backdrop is blocking the UI
     // This is important after the single card retry which may have shown a confirmation dialog
@@ -259,7 +259,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // Extra safety wait to ensure all animations complete
     await page.waitForTimeout(800)
     
-    const generateImagesNavBtn = page.locator('button:has-text("生成图片")').first()
+    const generateImagesNavBtn = page.locator('button:has-text("生成圖片")').first()
     
     // Wait for button to be enabled (it's disabled until all descriptions are generated)
     await generateImagesNavBtn.waitFor({ state: 'visible', timeout: 10000 })
@@ -310,17 +310,17 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // ====================================
     console.log('🎨 Step 11: Selecting template...')
     
-    // Click "更换模板" button to open template selection modal
+    // Click "更換模板" button to open template selection modal
     // The button might be hidden on small screens, so try multiple selectors
-    const changeTemplateBtn = page.locator('button:has-text("更换模板"), button[title="更换模板"]').first()
+    const changeTemplateBtn = page.locator('button:has-text("更換模板"), button[title="更換模板"]').first()
     await changeTemplateBtn.waitFor({ state: 'visible', timeout: 10000 })
     await changeTemplateBtn.scrollIntoViewIfNeeded()
     await changeTemplateBtn.click()
-    console.log('✓ Clicked "更换模板" button, opening template selection modal...')
+    console.log('✓ Clicked "更換模板" button, opening template selection modal...')
     
     // Wait for template modal to open (check for modal title and preset templates section)
-    await page.waitForSelector('text="更换模板"', { timeout: 5000 })
-    await page.waitForSelector('text="预设模板"', { timeout: 5000 })
+    await page.waitForSelector('text="更換模板"', { timeout: 5000 })
+    await page.waitForSelector('text="預設模板"', { timeout: 5000 })
     await page.waitForTimeout(500) // Wait for modal animation
     
     // Select the first preset template 
@@ -332,7 +332,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       try {
         // Find the preset templates section and click the first template card
         // The preset templates are in a grid with class containing "aspect-[4/3]"
-        const presetSection = page.locator('h4:has-text("预设模板")').locator('..')
+        const presetSection = page.locator('h4:has-text("預設模板")').locator('..')
         const firstTemplateCard = presetSection.locator('div[class*="aspect-[4/3]"]').first()
         await firstTemplateCard.waitFor({ state: 'visible', timeout: 3000 })
         await firstTemplateCard.click()
@@ -349,15 +349,15 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     
     // Wait for template selection to complete dynamically
     // The handleTemplateSelect function will:
-    // 1. Show "正在上传模板..." (isUploadingTemplate = true)
+    // 1. Show "正在上傳模板..." (isUploadingTemplate = true)
     // 2. Upload template and sync project
     // 3. Close modal (setIsTemplateModalOpen(false))
-    // 4. Show success toast "模板更换成功"
+    // 4. Show success toast "模板更換成功"
     
     console.log('  Waiting for template upload to complete...')
     
-    // Wait for "正在上传模板..." to appear (indicates upload started)
-    const uploadingText = page.locator('text="正在上传模板..."')
+    // Wait for "正在上傳模板..." to appear (indicates upload started)
+    const uploadingText = page.locator('text="正在上傳模板..."')
     const uploadStarted = await uploadingText.isVisible({ timeout: 3000 }).catch(() => false)
     if (uploadStarted) {
       console.log('  Template upload started, waiting for completion...')
@@ -369,9 +369,9 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     await expect(async () => {
       // Check if modal backdrop or modal content is still visible
       // The modal has a backdrop with class "fixed inset-0 bg-black/50"
-      // and the modal content has title "更换模板" in a specific structure
+      // and the modal content has title "更換模板" in a specific structure
       const modalBackdrop = page.locator('.fixed.inset-0.bg-black\\/50').first()
-      const modalContent = page.locator('h2:has-text("更换模板")').first()
+      const modalContent = page.locator('h2:has-text("更換模板")').first()
       
       const isBackdropVisible = await modalBackdrop.isVisible().catch(() => false)
       const isContentVisible = await modalContent.isVisible().catch(() => false)
@@ -389,7 +389,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     
     // Optionally wait for success toast (non-blocking, just for verification)
     try {
-      await page.waitForSelector('text="模板更换成功"', { timeout: 3000 })
+      await page.waitForSelector('text="模板更換成功"', { timeout: 3000 })
       console.log('✓ Success toast appeared')
     } catch (e) {
       // Toast might have disappeared quickly, that's okay
@@ -402,8 +402,8 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // ====================================
     console.log('🎨 Step 12: Clicking batch generate images button...')
     
-    // Wait for image generation page to load (button text includes page count like "批量生成图片 (3)")
-    const generateImageBtn = page.locator('button').filter({ hasText: '批量生成图片' })
+    // Wait for image generation page to load (button text includes page count like "批次生成圖片 (3)")
+    const generateImageBtn = page.locator('button').filter({ hasText: '批次生成圖片' })
     await generateImageBtn.waitFor({ state: 'visible', timeout: 10000 })
     
     if (await generateImageBtn.count() > 0) {
@@ -413,7 +413,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       // Wait for images to generate (should complete within 5 minutes)
       console.log('⏳ Step 13: Waiting for images to generate (should complete within 5 minutes)...')
       
-      // Get expected page count from the button text (e.g., "批量生成图片 (3)")
+      // Get expected page count from the button text (e.g., "批次生成圖片 (3)")
       let pageCount = 3 // default
       try {
         const buttonText = await generateImageBtn.first().textContent()
@@ -441,7 +441,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       console.log('  Step 13a: Waiting for image generation task to complete...')
       await expect(async () => {
         // Check if fullscreen loading is gone (indicates task completed)
-        const loadingOverlay = page.locator('text="生成图片中..."')
+        const loadingOverlay = page.locator('text="生成圖片中..."')
         const isLoading = await loadingOverlay.isVisible().catch(() => false)
         
         const elapsed = Math.floor((Date.now() - startTime) / 1000)
@@ -466,13 +466,13 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       console.log('  Step 13b: Waiting for export button to be enabled...')
       await expect(async () => {
         // Try to trigger a refresh by clicking refresh button if available (helps sync state)
-        const refreshBtn = page.locator('button:has-text("刷新")').first()
+        const refreshBtn = page.locator('button:has-text("重新整理")').first()
         if (await refreshBtn.isVisible().catch(() => false)) {
           await refreshBtn.click().catch(() => {}) // Non-blocking refresh
           await page.waitForTimeout(1000) // Wait for refresh to complete
         }
         
-        const exportBtnCheck = page.locator('button:has-text("导出")')
+        const exportBtnCheck = page.locator('button:has-text("匯出")')
         const isEnabled = await exportBtnCheck.isEnabled().catch(() => false)
         
         // Also verify images are visible
@@ -502,7 +502,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       })
       
       // Final verification: export button should be enabled
-      const exportBtnCheck = page.locator('button:has-text("导出")')
+      const exportBtnCheck = page.locator('button:has-text("匯出")')
       await expect(exportBtnCheck).toBeEnabled({ timeout: 5000 })
       
       console.log('✓ All images generated\n')
@@ -520,7 +520,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     const downloadPromise = page.waitForEvent('download', { timeout: 60000 })
     
     // Step 1: Wait for export button to be enabled (it's disabled until all images are generated)
-    const exportBtn = page.locator('button:has-text("导出")')
+    const exportBtn = page.locator('button:has-text("匯出")')
     await exportBtn.waitFor({ state: 'visible', timeout: 10000 })
     await expect(exportBtn).toBeEnabled({ timeout: 5000 })
     
@@ -530,11 +530,11 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
     // Wait for dropdown menu to appear
     await page.waitForTimeout(500)
     
-    // Step 2: Click "导出为 PPTX" in the dropdown menu
-    const exportPptxBtn = page.locator('button:has-text("导出为 PPTX")')
+    // Step 2: Click "匯出為 PPTX" in the dropdown menu
+    const exportPptxBtn = page.locator('button:has-text("匯出為 PPTX")')
     await exportPptxBtn.waitFor({ state: 'visible', timeout: 5000 })
     await exportPptxBtn.click()
-    console.log('✓ Clicked "导出为 PPTX" button\n')
+    console.log('✓ Clicked "匯出為 PPTX" button\n')
     
     // Wait for download to complete
     console.log('⏳ Waiting for PPT file download...')
@@ -564,7 +564,7 @@ test.describe('UI-driven E2E test: From user interface to PPT export', () => {
       const currentDir = path.dirname(fileURLToPath(import.meta.url))
       const validateScript = path.join(currentDir, 'validate_pptx.py')
       const result = execSync(
-        `python3 "${validateScript}" "${downloadPath}" 3 "人工智能" "AI"`,
+        `python3 "${validateScript}" "${downloadPath}" 3 "人工智慧" "AI"`,
         { encoding: 'utf-8', stdio: 'pipe' }
       )
       console.log(`✓ ${result.trim()}\n`)
@@ -598,8 +598,8 @@ test.describe('UI E2E - Simplified (skip long waits)', () => {
     await page.goto('http://localhost:3000')
     console.log('✓ Homepage loaded')
     
-    // Ensure "一句话生成" tab is selected (it's selected by default)
-    await page.click('button:has-text("一句话生成")').catch(() => {
+    // Ensure "一句話生成" tab is selected (it's selected by default)
+    await page.click('button:has-text("一句話生成")').catch(() => {
       // If click fails, the tab might already be selected, which is fine
     })
     console.log('✓ Entered create page')
@@ -626,7 +626,7 @@ test.describe('UI E2E - Simplified (skip long waits)', () => {
       // Option 2: Check for loading indicators
       try {
         await page.waitForSelector(
-          '.animate-spin, button[disabled], div:has-text("加载"), div:has-text("生成中")',
+          '.animate-spin, button[disabled], div:has-text("載入"), div:has-text("生成中")',
           { timeout: 5000 }
         )
         console.log('✓ Loading state detected')

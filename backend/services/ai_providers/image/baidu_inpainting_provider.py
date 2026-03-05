@@ -1,8 +1,8 @@
 """
-百度图像修复 Provider
-基于百度AI的图像修复能力，在指定矩形区域去除遮挡物并用背景内容填充
+百度影象修復 Provider
+基於百度AI的影象修復能力，在指定矩形區域去除遮擋物並用背景內容填充
 
-API文档: https://ai.baidu.com/ai-doc/IMAGEPROCESS/Mk4i6o3w3
+API文件: https://ai.baidu.com/ai-doc/IMAGEPROCESS/Mk4i6o3w3
 """
 import logging
 import base64
@@ -18,32 +18,32 @@ logger = logging.getLogger(__name__)
 
 class BaiduInpaintingProvider:
     """
-    百度图像修复 Provider
+    百度影象修復 Provider
     
-    在图片中指定位置框定一个或多个规则矩形，去掉不需要的遮挡物，并用背景内容填充。
+    在圖片中指定位置框定一個或多個規則矩形，去掉不需要的遮擋物，並用背景內容填充。
     
-    特点：
-    - 支持多个矩形区域同时修复
-    - 使用背景内容智能填充
-    - 快速响应，适合批量处理
+    特點：
+    - 支援多個矩形區域同時修復
+    - 使用背景內容智慧填充
+    - 快速響應，適合批次處理
     """
     
     def __init__(self, api_key: str, api_secret: Optional[str] = None):
         """
-        初始化百度图像修复 Provider
+        初始化百度影象修復 Provider
         
         Args:
             api_key: 百度API Key（BCEv3格式：bce-v3/ALTAK-...）或Access Token
-            api_secret: 可选，如果提供则用于BCEv3签名
+            api_secret: 可選，如果提供則用於BCEv3簽名
         """
         self.api_key = api_key
         self.api_secret = api_secret
         self.api_url = "https://aip.baidubce.com/rest/2.0/image-process/v1/inpainting"
         
         if api_key.startswith('bce-v3/'):
-            logger.info("✅ 初始化百度图像修复 Provider (使用BCEv3 API Key)")
+            logger.info("✅ 初始化百度影象修復 Provider (使用BCEv3 API Key)")
         else:
-            logger.info("✅ 初始化百度图像修复 Provider (使用Access Token)")
+            logger.info("✅ 初始化百度影象修復 Provider (使用Access Token)")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -57,43 +57,43 @@ class BaiduInpaintingProvider:
         rectangles: List[Dict[str, int]]
     ) -> Optional[Image.Image]:
         """
-        修复图片中指定的矩形区域
+        修復圖片中指定的矩形區域
         
         Args:
-            image: PIL Image对象
-            rectangles: 矩形区域列表，每个矩形包含:
-                - left: 左上角x坐标
-                - top: 左上角y坐标
-                - width: 宽度
+            image: PIL Image物件
+            rectangles: 矩形區域列表，每個矩形包含:
+                - left: 左上角x座標
+                - top: 左上角y座標
+                - width: 寬度
                 - height: 高度
         
         Returns:
-            修复后的PIL Image对象，失败返回None
+            修復後的PIL Image物件，失敗返回None
         """
         if not rectangles:
-            logger.warning("没有提供矩形区域，返回原图")
+            logger.warning("沒有提供矩形區域，返回原圖")
             return image.copy()
         
-        logger.info(f"🔧 开始百度图像修复，共 {len(rectangles)} 个区域")
+        logger.info(f"🔧 開始百度影象修復，共 {len(rectangles)} 個區域")
         
         try:
-            # 转换图片为RGB模式
+            # 轉換圖片為RGB模式
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
             original_width, original_height = image.size
-            logger.info(f"📏 图片尺寸: {original_width}x{original_height}")
+            logger.info(f"📏 圖片尺寸: {original_width}x{original_height}")
             
-            # 检查并调整图片大小（最长边不超过5000px）
+            # 檢查並調整圖片大小（最長邊不超過5000px）
             max_size = 5000
             scale = 1.0
             if original_width > max_size or original_height > max_size:
                 scale = min(max_size / original_width, max_size / original_height)
                 new_size = (int(original_width * scale), int(original_height * scale))
                 image = image.resize(new_size, Image.Resampling.LANCZOS)
-                logger.info(f"✂️ 压缩图片: {image.size}")
+                logger.info(f"✂️ 壓縮圖片: {image.size}")
                 
-                # 同时缩放矩形区域
+                # 同時縮放矩形區域
                 rectangles = [
                     {
                         'left': int(r['left'] * scale),
@@ -104,46 +104,46 @@ class BaiduInpaintingProvider:
                     for r in rectangles
                 ]
             
-            # 过滤掉无效的矩形（宽或高为0）
+            # 過濾掉無效的矩形（寬或高為0）
             valid_rectangles = [
                 r for r in rectangles 
                 if r['width'] > 0 and r['height'] > 0
             ]
             
             if not valid_rectangles:
-                logger.warning("过滤后没有有效的矩形区域，返回原图")
+                logger.warning("過濾後沒有有效的矩形區域，返回原圖")
                 return image.copy()
             
-            # 转为base64
+            # 轉為base64
             buffer = io.BytesIO()
             image.save(buffer, format='JPEG', quality=95)
             image_bytes = buffer.getvalue()
             image_base64 = base64.b64encode(image_bytes).decode('utf-8')
             
-            logger.info(f"📦 图片编码完成: {len(image_base64)} bytes, {len(valid_rectangles)} 个矩形区域")
+            logger.info(f"📦 圖片編碼完成: {len(image_base64)} bytes, {len(valid_rectangles)} 個矩形區域")
             
-            # 构建请求头
+            # 構建請求頭
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             }
             
-            # 选择认证方式
+            # 選擇認證方式
             if self.api_key.startswith('bce-v3/'):
                 headers['Authorization'] = f'Bearer {self.api_key}'
                 url = self.api_url
-                logger.info("🔐 使用BCEv3签名认证")
+                logger.info("🔐 使用BCEv3簽名認證")
             else:
                 url = f"{self.api_url}?access_token={self.api_key}"
-                logger.info("🔐 使用Access Token认证")
+                logger.info("🔐 使用Access Token認證")
             
-            # 构建请求体
+            # 構建請求體
             request_body = {
                 'image': image_base64,
                 'rectangle': valid_rectangles
             }
             
-            logger.info("🌐 发送请求到百度图像修复API...")
+            logger.info("🌐 傳送請求到百度影象修復API...")
             response = requests.post(
                 url, 
                 headers=headers, 
@@ -154,36 +154,36 @@ class BaiduInpaintingProvider:
             
             result = response.json()
             
-            # 检查错误 - 抛出异常以触发 @retry 装饰器
+            # 檢查錯誤 - 丟擲異常以觸發 @retry 裝飾器
             if 'error_code' in result:
                 error_msg = result.get('error_msg', 'Unknown error')
                 error_code = result.get('error_code')
-                logger.error(f"❌ 百度API错误: [{error_code}] {error_msg}")
+                logger.error(f"❌ 百度API錯誤: [{error_code}] {error_msg}")
                 raise Exception(f"Baidu API error [{error_code}]: {error_msg}")
             
-            # 解析结果
+            # 解析結果
             result_image_base64 = result.get('image')
             if not result_image_base64:
-                logger.error("❌ 百度API返回结果中没有图片")
+                logger.error("❌ 百度API返回結果中沒有圖片")
                 return None
             
-            # 解码返回的图片
+            # 解碼返回的圖片
             result_image_bytes = base64.b64decode(result_image_base64)
             result_image = Image.open(io.BytesIO(result_image_bytes))
             
-            # 如果之前缩放过，恢复到原始尺寸
+            # 如果之前縮放過，恢復到原始尺寸
             if scale < 1.0:
                 result_image = result_image.resize(
                     (original_width, original_height), 
                     Image.Resampling.LANCZOS
                 )
-                logger.info(f"📐 恢复图片尺寸: {result_image.size}")
+                logger.info(f"📐 恢復圖片尺寸: {result_image.size}")
             
-            logger.info(f"✅ 百度图像修复完成!")
+            logger.info(f"✅ 百度影象修復完成!")
             return result_image
             
         except Exception as e:
-            logger.error(f"❌ 百度图像修复失败: {str(e)}")
+            logger.error(f"❌ 百度影象修復失敗: {str(e)}")
             raise
     
     def inpaint_bboxes(
@@ -193,21 +193,21 @@ class BaiduInpaintingProvider:
         expand_pixels: int = 2
     ) -> Optional[Image.Image]:
         """
-        使用bbox格式修复图片
+        使用bbox格式修復圖片
         
         Args:
-            image: PIL Image对象
-            bboxes: bbox列表，每个bbox格式为 (x0, y0, x1, y1)
-            expand_pixels: 扩展像素数，默认2
+            image: PIL Image物件
+            bboxes: bbox列表，每個bbox格式為 (x0, y0, x1, y1)
+            expand_pixels: 擴充套件畫素數，預設2
         
         Returns:
-            修复后的PIL Image对象
+            修復後的PIL Image物件
         """
-        # 将bbox转换为rectangle格式
+        # 將bbox轉換為rectangle格式
         rectangles = []
         for bbox in bboxes:
             x0, y0, x1, y1 = bbox
-            # 扩展区域
+            # 擴充套件區域
             x0 = max(1, x0 - expand_pixels)
             y0 = max(1, y0 - expand_pixels)
             x1 = min(image.width - 1, x1 + expand_pixels)
@@ -228,14 +228,14 @@ def create_baidu_inpainting_provider(
     api_secret: Optional[str] = None
 ) -> Optional[BaiduInpaintingProvider]:
     """
-    创建百度图像修复 Provider 实例
+    建立百度影象修復 Provider 例項
     
     Args:
-        api_key: 百度API Key，如果不提供则从 config.py 读取
-        api_secret: 百度API Secret（可选），如果不提供则从 config.py 读取
+        api_key: 百度API Key，如果不提供則從 config.py 讀取
+        api_secret: 百度API Secret（可選），如果不提供則從 config.py 讀取
         
     Returns:
-        BaiduInpaintingProvider实例，如果api_key不可用则返回None
+        BaiduInpaintingProvider例項，如果api_key不可用則返回None
     """
     from config import Config
     
@@ -246,7 +246,7 @@ def create_baidu_inpainting_provider(
         api_secret = Config.BAIDU_OCR_API_SECRET
     
     if not api_key:
-        logger.warning("⚠️ 未配置百度API Key (BAIDU_OCR_API_KEY), 跳过百度图像修复")
+        logger.warning("⚠️ 未配置百度API Key (BAIDU_OCR_API_KEY), 跳過百度影象修復")
         return None
     
     return BaiduInpaintingProvider(api_key, api_secret)

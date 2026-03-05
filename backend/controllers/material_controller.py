@@ -155,14 +155,14 @@ def generate_material_image(project_id):
     Note: project_id can be 'none' to generate global materials (not associated with any project)
     """
     try:
-        # 支持 'none' 作为特殊值，表示生成全局素材
+        # 支援 'none' 作為特殊值，表示生成全域性素材
         if project_id != 'none':
             project = Project.query.get(project_id)
             if not project:
                 return not_found('Project')
         else:
             project = None
-            project_id = None  # 设置为None表示全局素材
+            project_id = None  # 設定為None表示全域性素材
 
         # Parse request data (prioritize multipart for file uploads)
         if request.is_json:
@@ -179,11 +179,11 @@ def generate_material_image(project_id):
         if not prompt:
             return bad_request("prompt is required")
 
-        # 处理project_id：对于全局素材，使用'global'作为Task的project_id
-        # Task模型要求project_id不能为null，但Material可以
+        # 處理project_id：對於全域性素材，使用'global'作為Task的project_id
+        # Task模型要求project_id不能為null，但Material可以
         task_project_id = project_id if project_id is not None else 'global'
         
-        # 验证project_id（如果不是'global'）
+        # 驗證project_id（如果不是'global'）
         if task_project_id != 'global':
             project = Project.query.get(task_project_id)
             if not project:
@@ -193,7 +193,7 @@ def generate_material_image(project_id):
         ai_service = get_ai_service()
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
 
-        # 创建临时目录保存参考图片（后台任务会清理）
+        # 建立臨時目錄儲存參考圖片（後臺任務會清理）
         temp_dir = Path(tempfile.mkdtemp(dir=current_app.config['UPLOAD_FOLDER']))
         temp_dir_str = str(temp_dir)
 
@@ -239,7 +239,7 @@ def generate_material_image(project_id):
             task_manager.submit_task(
                 task.id,
                 generate_material_image_task,
-                task_project_id,  # 传递给任务函数，它会处理'global'的情况
+                task_project_id,  # 傳遞給任務函式，它會處理'global'的情況
                 prompt,
                 ai_service,
                 file_service,
@@ -251,7 +251,7 @@ def generate_material_image(project_id):
                 app
             )
 
-            # Return task_id immediately (不再清理temp_dir，由后台任务清理)
+            # Return task_id immediately (不再清理temp_dir，由後臺任務清理)
             return success_response({
                 'task_id': task.id,
                 'status': 'PENDING'

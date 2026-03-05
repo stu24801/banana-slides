@@ -25,7 +25,7 @@ import { refineOutline } from '@/api/endpoints';
 import { exportOutlineToMarkdown } from '@/utils/projectUtils';
 import type { Page } from '@/types';
 
-// 可排序的卡片包装器
+// 可排序的卡片包裝器
 const SortableCard: React.FC<{
   page: Page;
   index: number;
@@ -74,16 +74,16 @@ export const OutlineEditor: React.FC = () => {
   const { confirm, ConfirmDialog } = useConfirm();
   const { show, ToastContainer } = useToast();
 
-  // 加载项目数据
+  // 載入專案資料
   useEffect(() => {
     if (projectId && (!currentProject || currentProject.id !== projectId)) {
-      // 直接使用 projectId 同步项目数据
+      // 直接使用 projectId 同步專案資料
       syncProject(projectId);
     }
   }, [projectId, currentProject, syncProject]);
 
 
-  // 拖拽传感器配置
+  // 拖拽感測器配置
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -108,25 +108,25 @@ export const OutlineEditor: React.FC = () => {
     
     if (currentProject.pages.length > 0) {
       confirm(
-        '已有大纲内容，重新生成将覆盖现有内容，确定继续吗？',
+        '已有大綱內容，重新生成將覆蓋現有內容，確定繼續嗎？',
         async () => {
           try {
             await generateOutline();
-            // generateOutline 内部已经调用了 syncProject，这里不需要再次调用
+            // generateOutline 內部已經呼叫了 syncProject，這裡不需要再次呼叫
           } catch (error) {
-            console.error('生成大纲失败:', error);
+            console.error('生成大綱失敗:', error);
           }
         },
-        { title: '确认重新生成', variant: 'warning' }
+        { title: '確認重新生成', variant: 'warning' }
       );
       return;
     }
     
     try {
       await generateOutline();
-      // generateOutline 内部已经调用了 syncProject，这里不需要再次调用
+      // generateOutline 內部已經呼叫了 syncProject，這裡不需要再次呼叫
     } catch (error) {
-      console.error('生成大纲失败:', error);
+      console.error('生成大綱失敗:', error);
     }
   };
 
@@ -137,42 +137,42 @@ export const OutlineEditor: React.FC = () => {
       const response = await refineOutline(projectId, requirement, previousRequirements);
       await syncProject(projectId);
       show({ 
-        message: response.data?.message || '大纲修改成功', 
+        message: response.data?.message || '大綱修改成功', 
         type: 'success' 
       });
     } catch (error: any) {
-      console.error('修改大纲失败:', error);
+      console.error('修改大綱失敗:', error);
       const errorMessage = error?.response?.data?.error?.message 
         || error?.message 
-        || '修改失败，请稍后重试';
+        || '修改失敗，請稍後重試';
       show({ message: errorMessage, type: 'error' });
-      throw error; // 抛出错误让组件知道失败了
+      throw error; // 丟擲錯誤讓元件知道失敗了
     }
   }, [currentProject, projectId, syncProject, show]);
 
-  // 导出大纲为 Markdown 文件
+  // 匯出大綱為 Markdown 檔案
   const handleExportOutline = useCallback(() => {
     if (!currentProject) return;
     exportOutlineToMarkdown(currentProject);
-    show({ message: '导出成功', type: 'success' });
+    show({ message: '匯出成功', type: 'success' });
   }, [currentProject, show]);
 
   const selectedPage = currentProject?.pages.find((p) => p.id === selectedPageId);
 
   if (!currentProject) {
-    return <Loading fullscreen message="加载项目中..." />;
+    return <Loading fullscreen message="載入專案中..." />;
   }
 
   if (isGlobalLoading) {
-    return <Loading fullscreen message="生成大纲中..." />;
+    return <Loading fullscreen message="生成大綱中..." />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* 顶栏 */}
+      {/* 頂欄 */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-3 md:px-6 py-2 md:py-3 flex-shrink-0">
         <div className="flex items-center justify-between gap-2 md:gap-4">
-          {/* 左侧：Logo 和标题 */}
+          {/* 左側：Logo 和標題 */}
           <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
             <Button
               variant="ghost"
@@ -194,14 +194,14 @@ export const OutlineEditor: React.FC = () => {
               <span className="text-base md:text-xl font-bold">蕉幻</span>
             </div>
             <span className="text-gray-400 hidden lg:inline">|</span>
-            <span className="text-sm md:text-lg font-semibold hidden lg:inline">编辑大纲</span>
+            <span className="text-sm md:text-lg font-semibold hidden lg:inline">編輯大綱</span>
           </div>
           
-          {/* 中间：AI 修改输入框 */}
+          {/* 中間：AI 修改輸入框 */}
           <div className="flex-1 max-w-xl mx-auto hidden md:block md:-translate-x-2 pr-10">
             <AiRefineInput
               title=""
-              placeholder="例如：增加一页关于XXX的内容、删除第3页、合并前两页... · Ctrl+Enter提交"
+              placeholder="例如：增加一頁關於XXX的內容、刪除第3頁、合併前兩頁... · Ctrl+Enter提交"
               onSubmit={handleAiRefineOutline}
               disabled={false}
               className="!p-0 !bg-transparent !border-0"
@@ -209,7 +209,7 @@ export const OutlineEditor: React.FC = () => {
             />
           </div>
           
-          {/* 右侧：操作按钮 */}
+          {/* 右側：操作按鈕 */}
           <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
             <Button 
               variant="secondary" 
@@ -218,7 +218,7 @@ export const OutlineEditor: React.FC = () => {
               onClick={async () => await saveAllPages()}
               className="hidden md:inline-flex"
             >
-              <span className="hidden lg:inline">保存</span>
+              <span className="hidden lg:inline">儲存</span>
             </Button>
             <Button
               variant="primary"
@@ -232,11 +232,11 @@ export const OutlineEditor: React.FC = () => {
           </div>
         </div>
         
-        {/* 移动端：AI 输入框 */}
+        {/* 移動端：AI 輸入框 */}
         <div className="mt-2 md:hidden">
           <AiRefineInput
             title=""
-            placeholder="例如：增加/删除页面... · Ctrl+Enter"
+            placeholder="例如：增加/刪除頁面... · Ctrl+Enter"
             onSubmit={handleAiRefineOutline}
             disabled={false}
             className="!p-0 !bg-transparent !border-0"
@@ -245,18 +245,18 @@ export const OutlineEditor: React.FC = () => {
         </div>
       </header>
 
-      {/* 上下文栏 */}
+      {/* 上下文欄 */}
       <div className="bg-banana-50 border-b border-banana-100 px-3 md:px-6 py-2 md:py-3 max-h-32 overflow-y-auto flex-shrink-0">
         <div className="flex items-start gap-1.5 md:gap-2 text-xs md:text-sm">
           {currentProject.creation_type === 'idea' && (
             <span className="font-medium text-gray-700 flex-shrink-0 flex items-center">
-              <Sparkle size={12} className="mr-1" /> PPT构想:
+              <Sparkle size={12} className="mr-1" /> PPT構想:
               <span className="text-gray-900 font-normal ml-2 break-words whitespace-pre-wrap">{currentProject.idea_prompt}</span>
             </span>
           )}
           {currentProject.creation_type === 'outline' && (
             <span className="font-medium text-gray-700 flex-shrink-0 flex items-center">
-              <FileText size={12} className="mr-1" /> 大纲:
+              <FileText size={12} className="mr-1" /> 大綱:
               <span className="text-gray-900 font-normal ml-2 break-words whitespace-pre-wrap">{currentProject.outline_text || currentProject.idea_prompt}</span>
             </span>
           )}
@@ -269,12 +269,12 @@ export const OutlineEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* 主内容区 */}
+      {/* 主內容區 */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* 左侧：大纲列表 */}
+        {/* 左側：大綱列表 */}
         <div className="flex-1 p-3 md:p-6 overflow-y-auto min-h-0">
           <div className="max-w-4xl mx-auto">
-            {/* 操作按钮 */}
+            {/* 操作按鈕 */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 md:mb-6">
               <Button
                 variant="primary"
@@ -282,7 +282,7 @@ export const OutlineEditor: React.FC = () => {
                 onClick={addNewPage}
                 className="w-full sm:w-auto text-sm md:text-base"
               >
-                添加页面
+                新增頁面
               </Button>
               {currentProject.pages.length === 0 ? (
                 <Button
@@ -290,7 +290,7 @@ export const OutlineEditor: React.FC = () => {
                   onClick={handleGenerateOutline}
                   className="w-full sm:w-auto text-sm md:text-base"
                 >
-                  {currentProject.creation_type === 'outline' ? '解析大纲' : '自动生成大纲'}
+                  {currentProject.creation_type === 'outline' ? '解析大綱' : '自動生成大綱'}
                 </Button>
               ) : (
                 <Button
@@ -298,7 +298,7 @@ export const OutlineEditor: React.FC = () => {
                   onClick={handleGenerateOutline}
                   className="w-full sm:w-auto text-sm md:text-base"
                 >
-                  {currentProject.creation_type === 'outline' ? '重新解析大纲' : '重新生成大纲'}
+                  {currentProject.creation_type === 'outline' ? '重新解析大綱' : '重新生成大綱'}
                 </Button>
               )}
               <Button
@@ -308,9 +308,9 @@ export const OutlineEditor: React.FC = () => {
                 disabled={currentProject.pages.length === 0}
                 className="w-full sm:w-auto text-sm md:text-base"
               >
-                导出大纲
+                匯出大綱
               </Button>
-              {/* 手机端：保存按钮 */}
+              {/* 手機端：儲存按鈕 */}
               <Button 
                 variant="secondary" 
                 size="sm" 
@@ -318,11 +318,11 @@ export const OutlineEditor: React.FC = () => {
                 onClick={async () => await saveAllPages()}
                 className="md:hidden w-full sm:w-auto text-sm md:text-base"
               >
-                保存
+                儲存
               </Button>
             </div>
 
-            {/* 项目资源列表（文件和图片） */}
+            {/* 專案資源列表（檔案和圖片） */}
             <ProjectResourcesList
               projectId={projectId || null}
               onFileClick={setPreviewFileId}
@@ -330,17 +330,17 @@ export const OutlineEditor: React.FC = () => {
               showImages={true}
             />
 
-            {/* 大纲卡片列表 */}
+            {/* 大綱卡片列表 */}
             {currentProject.pages.length === 0 ? (
               <div className="text-center py-20">
                 <div className="flex justify-center mb-4">
                   <FileText size={64} className="text-gray-300" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  还没有页面
+                  還沒有頁面
                 </h3>
                 <p className="text-gray-500 mb-6">
-                  点击"添加页面"手动创建，或"自动生成大纲"让 AI 帮你完成
+                  點選"新增頁面"手動建立，或"自動生成大綱"讓 AI 幫你完成
                 </p>
               </div>
             ) : (
@@ -373,20 +373,20 @@ export const OutlineEditor: React.FC = () => {
           </div>
         </div>
 
-        {/* 右侧：预览 */}
+        {/* 右側：預覽 */}
         <div className="hidden md:block w-96 bg-white border-l border-gray-200 p-4 md:p-6 overflow-y-auto flex-shrink-0">
-          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">预览</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">預覽</h3>
           
           {selectedPage ? (
             <div className="space-y-3 md:space-y-4">
               <div>
-                <div className="text-xs md:text-sm text-gray-500 mb-1">标题</div>
+                <div className="text-xs md:text-sm text-gray-500 mb-1">標題</div>
                 <div className="text-base md:text-lg font-semibold text-gray-900">
                   {selectedPage.outline_content.title}
                 </div>
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-500 mb-2">要点</div>
+                <div className="text-xs md:text-sm text-gray-500 mb-2">要點</div>
                 <ul className="space-y-1.5 md:space-y-2">
                   {selectedPage.outline_content.points.map((point, idx) => (
                     <li key={idx} className="flex items-start text-sm md:text-base text-gray-700">
@@ -400,24 +400,24 @@ export const OutlineEditor: React.FC = () => {
           ) : (
             <div className="text-center py-8 md:py-10 text-gray-400">
               <div className="text-3xl md:text-4xl mb-2">👆</div>
-              <p className="text-sm md:text-base">点击左侧卡片查看详情</p>
+              <p className="text-sm md:text-base">點選左側卡片檢視詳情</p>
             </div>
           )}
         </div>
         
-        {/* 移动端预览：底部抽屉 */}
+        {/* 移動端預覽：底部抽屜 */}
         {selectedPage && (
           <div className="md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 p-4 max-h-[50vh] overflow-y-auto shadow-lg z-50">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">预览</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">預覽</h3>
             <div className="space-y-2">
               <div>
-                <div className="text-xs text-gray-500 mb-1">标题</div>
+                <div className="text-xs text-gray-500 mb-1">標題</div>
                 <div className="text-sm font-semibold text-gray-900">
                   {selectedPage.outline_content.title}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-500 mb-1">要点</div>
+                <div className="text-xs text-gray-500 mb-1">要點</div>
                 <ul className="space-y-1">
                   {selectedPage.outline_content.points.map((point, idx) => (
                     <li key={idx} className="flex items-start text-xs text-gray-700">

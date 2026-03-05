@@ -22,21 +22,21 @@ interface LoadingProps {
 
 export const Loading: React.FC<LoadingProps> = ({
   fullscreen = false,
-  message = '加载中...',
+  message = '載入中...',
   progress,
   onBackgroundClick,
-  backgroundButtonLabel = '在后台执行',
+  backgroundButtonLabel = '在後臺執行',
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // 自动滚动到最新消息
+  // 自動滾動到最新訊息
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [progress?.messages]);
   
-  // 计算进度百分比
+  // 計算進度百分比
   const getPercent = () => {
     if (!progress) return 0;
     if (progress.percent !== undefined) return progress.percent;
@@ -49,16 +49,16 @@ export const Loading: React.FC<LoadingProps> = ({
   
   const content = (
     <div className="flex flex-col items-center justify-center max-w-md w-full px-4">
-      {/* 加载图标 */}
+      {/* 載入圖示 */}
       <div className="relative w-12 h-12 mb-4">
         <div className="absolute inset-0 border-4 border-banana-100 rounded-full" />
         <div className="absolute inset-0 border-4 border-banana-500 rounded-full border-t-transparent animate-spin" />
       </div>
       
-      {/* 消息 */}
+      {/* 訊息 */}
       <p className="text-lg text-gray-700 mb-4 text-center">{message}</p>
       
-      {/* 进度条 */}
+      {/* 進度條 */}
       {progress && (
         <div className="w-full">
           <div className="flex justify-end text-sm text-gray-600 mb-2">
@@ -73,7 +73,7 @@ export const Loading: React.FC<LoadingProps> = ({
         </div>
       )}
       
-      {/* 滚动消息日志 */}
+      {/* 滾動訊息日誌 */}
       {hasMessages && (
         <div className="w-full mt-4">
           <div className="bg-banana-50 border border-banana-200 rounded-lg p-3 h-32 overflow-y-auto text-xs">
@@ -119,7 +119,7 @@ export const Loading: React.FC<LoadingProps> = ({
   return content;
 };
 
-// 骨架屏组件
+// 骨架屏元件
 export const Skeleton: React.FC<{ className?: string }> = ({ className }) => {
   return (
     <div

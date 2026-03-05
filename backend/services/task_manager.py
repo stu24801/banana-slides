@@ -69,49 +69,49 @@ task_manager = TaskManager(max_workers=4)
 def save_image_with_version(image, project_id: str, page_id: str, file_service,
                             page_obj=None, image_format: str = 'PNG') -> tuple[str, int]:
     """
-    保存图片并创建历史版本记录的公共函数
+    儲存圖片並建立歷史版本記錄的公共函式
 
     Args:
-        image: PIL Image 对象
-        project_id: 项目ID
-        page_id: 页面ID
-        file_service: FileService 实例
-        page_obj: Page 对象（可选，如果提供则更新页面状态）
-        image_format: 图片格式，默认 PNG
+        image: PIL Image 物件
+        project_id: 專案ID
+        page_id: 頁面ID
+        file_service: FileService 例項
+        page_obj: Page 物件（可選，如果提供則更新頁面狀態）
+        image_format: 圖片格式，預設 PNG
 
     Returns:
-        tuple: (image_path, version_number) - 图片路径和版本号
+        tuple: (image_path, version_number) - 圖片路徑和版本號
 
-    这个函数会：
-    1. 计算下一个版本号（使用 MAX 查询确保安全）
-    2. 标记所有旧版本为非当前版本
-    3. 保存图片到最终位置
-    4. 生成并保存压缩的缓存图片
-    5. 创建新版本记录
-    6. 如果提供了 page_obj，更新页面状态和图片路径
+    這個函式會：
+    1. 計算下一個版本號（使用 MAX 查詢確保安全）
+    2. 標記所有舊版本為非當前版本
+    3. 儲存圖片到最終位置
+    4. 生成並儲存壓縮的快取圖片
+    5. 建立新版本記錄
+    6. 如果提供了 page_obj，更新頁面狀態和圖片路徑
     """
-    # 使用 MAX 查询确保版本号安全（即使有版本被删除也不会重复）
+    # 使用 MAX 查詢確保版本號安全（即使有版本被刪除也不會重複）
     max_version = db.session.query(func.max(PageImageVersion.version_number)).filter_by(page_id=page_id).scalar() or 0
     next_version = max_version + 1
 
-    # 批量更新：标记所有旧版本为非当前版本（使用单条 SQL 更高效）
+    # 批次更新：標記所有舊版本為非當前版本（使用單條 SQL 更高效）
     PageImageVersion.query.filter_by(page_id=page_id).update({'is_current': False})
 
-    # 保存原图到最终位置（使用版本号）
+    # 儲存原圖到最終位置（使用版本號）
     image_path = file_service.save_generated_image(
         image, project_id, page_id,
         version_number=next_version,
         image_format=image_format
     )
 
-    # 生成并保存压缩的缓存图片（用于前端快速显示）
+    # 生成並儲存壓縮的快取圖片（用於前端快速顯示）
     cached_image_path = file_service.save_cached_image(
         image, project_id, page_id,
         version_number=next_version,
         quality=85
     )
 
-    # 创建新版本记录
+    # 建立新版本記錄
     new_version = PageImageVersion(
         page_id=page_id,
         image_path=image_path,
@@ -120,14 +120,14 @@ def save_image_with_version(image, project_id: str, page_id: str, file_service,
     )
     db.session.add(new_version)
 
-    # 如果提供了 page_obj，更新页面状态和图片路径
+    # 如果提供了 page_obj，更新頁面狀態和圖片路徑
     if page_obj:
         page_obj.generated_image_path = image_path
         page_obj.cached_image_path = cached_image_path
         page_obj.status = 'COMPLETED'
         page_obj.updated_at = datetime.utcnow()
 
-    # 提交事务
+    # 提交事務
     db.session.commit()
 
     logger.debug(f"Page {page_id} image saved as version {next_version}: {image_path}, cached: {cached_image_path}")
@@ -158,10 +158,10 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
     if app is None:
         raise ValueError("Flask app instance must be provided")
     
-    # 在整个任务中保持应用上下文
+    # 在整個任務中保持應用上下文
     with app.app_context():
         try:
-            # 重要：在后台线程开始时就获取task和设置状态
+            # 重要：在後臺執行緒開始時就獲取task和設定狀態
             task = Task.query.get(task_id)
             if not task:
                 logger.error(f"Task {task_id} not found")
@@ -195,9 +195,9 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
             def generate_single_desc(page_id, page_outline, page_index):
                 """
                 Generate description for a single page
-                注意：只传递 page_id（字符串），不传递 ORM 对象，避免跨线程会话问题
+                注意：只傳遞 page_id（字串），不傳遞 ORM 物件，避免跨執行緒會話問題
                 """
-                # 关键修复：在子线程中也需要应用上下文
+                # 關鍵修復：在子執行緒中也需要應用上下文
                 with app.app_context():
                     try:
                         # Get singleton AI service instance
@@ -224,7 +224,7 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
                         return (page_id, None, str(e))
             
             # Use ThreadPoolExecutor for parallel generation
-            # 关键：提前提取 page.id，不要传递 ORM 对象到子线程
+            # 關鍵：提前提取 page.id，不要傳遞 ORM 物件到子執行緒
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
                     executor.submit(generate_single_desc, page.id, page_data, i)
@@ -317,8 +317,8 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             pages = get_filtered_pages(project_id, page_ids)
             pages_data = ai_service.flatten_outline(outline)
             
-            # 注意：不在任务开始时获取模板路径，而是在每个子线程中动态获取
-            # 这样可以确保即使用户在上传新模板后立即生成，也能使用最新模板
+            # 注意：不在任務開始時獲取模板路徑，而是在每個子執行緒中動態獲取
+            # 這樣可以確保即使使用者在上傳新模板後立即生成，也能使用最新模板
             
             # Initialize progress
             task.set_progress({
@@ -335,9 +335,9 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             def generate_single_image(page_id, page_data, page_index):
                 """
                 Generate image for a single page
-                注意：只传递 page_id（字符串），不传递 ORM 对象，避免跨线程会话问题
+                注意：只傳遞 page_id（字串），不傳遞 ORM 物件，避免跨執行緒會話問題
                 """
-                # 关键修复：在子线程中也需要应用上下文
+                # 關鍵修復：在子執行緒中也需要應用上下文
                 with app.app_context():
                     try:
                         logger.debug(f"Starting image generation for page {page_id}, index {page_index}")
@@ -356,10 +356,10 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         if not desc_content:
                             raise ValueError("No description content for page")
                         
-                        # 获取描述文本（可能是 text 字段或 text_content 数组）
+                        # 獲取描述文字（可能是 text 欄位或 text_content 陣列）
                         desc_text = desc_content.get('text', '')
                         if not desc_text and desc_content.get('text_content'):
-                            # 如果 text 字段不存在，尝试从 text_content 数组获取
+                            # 如果 text 欄位不存在，嘗試從 text_content 陣列獲取
                             text_content = desc_content.get('text_content', [])
                             if isinstance(text_content, list):
                                 desc_text = '\n'.join(text_content)
@@ -368,11 +368,11 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         
                         logger.debug(f"Got description text for page {page_id}: {desc_text[:100]}...")
                         
-                        # 从当前页面的描述内容中提取图片 URL
+                        # 從當前頁面的描述內容中提取圖片 URL
                         page_additional_ref_images = []
                         has_material_images = False
                         
-                        # 从描述文本中提取图片
+                        # 從描述文字中提取圖片
                         if desc_text:
                             image_urls = ai_service.extract_image_urls_from_markdown(desc_text)
                             if image_urls:
@@ -380,12 +380,12 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                                 page_additional_ref_images = image_urls
                                 has_material_images = True
                         
-                        # 在子线程中动态获取模板路径，确保使用最新模板
+                        # 在子執行緒中動態獲取模板路徑，確保使用最新模板
                         page_ref_image_path = None
                         if use_template:
                             page_ref_image_path = file_service.get_template_path(project_id)
-                            # 注意：如果有风格描述，即使没有模板图片也允许生成
-                            # 这个检查已经在 controller 层完成，这里不再检查
+                            # 注意：如果有風格描述，即使沒有模板圖片也允許生成
+                            # 這個檢查已經在 controller 層完成，這裡不再檢查
                         
                         # Generate image prompt
                         prompt = ai_service.generate_image_prompt(
@@ -408,8 +408,8 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         if not image:
                             raise ValueError("Failed to generate image")
                         
-                        # 优化：直接在子线程中计算版本号并保存到最终位置
-                        # 每个页面独立，使用数据库事务保证版本号原子性，避免临时文件
+                        # 最佳化：直接在子執行緒中計算版本號並儲存到最終位置
+                        # 每個頁面獨立，使用資料庫事務保證版本號原子性，避免臨時檔案
                         image_path, next_version = save_image_with_version(
                             image, project_id, page_id, file_service, page_obj=page_obj
                         )
@@ -423,7 +423,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         return (page_id, None, str(e))
             
             # Use ThreadPoolExecutor for parallel generation
-            # 关键：提前提取 page.id，不要传递 ORM 对象到子线程
+            # 關鍵：提前提取 page.id，不要傳遞 ORM 物件到子執行緒
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
                     executor.submit(generate_single_image, page.id, page_data, i)
@@ -436,7 +436,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                     
                     db.session.expire_all()
                     
-                    # Update page in database (主要是为了更新失败状态)
+                    # Update page in database (主要是為了更新失敗狀態)
                     page = Page.query.get(page_id)
                     if page:
                         if error:
@@ -444,9 +444,9 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                             failed += 1
                             db.session.commit()
                         else:
-                            # 图片已在子线程中保存并创建版本记录，这里只需要更新计数
+                            # 圖片已在子執行緒中儲存並建立版本記錄，這裡只需要更新計數
                             completed += 1
-                            # 刷新页面对象以获取最新状态
+                            # 重新整理頁面物件以獲取最新狀態
                             db.session.refresh(page)
                     
                     # Update task progress
@@ -520,7 +520,7 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             if not desc_content:
                 raise ValueError("No description content for page")
             
-            # 获取描述文本（可能是 text 字段或 text_content 数组）
+            # 獲取描述文字（可能是 text 欄位或 text_content 陣列）
             desc_text = desc_content.get('text', '')
             if not desc_text and desc_content.get('text_content'):
                 text_content = desc_content.get('text_content', [])
@@ -529,7 +529,7 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
                 else:
                     desc_text = str(text_content)
             
-            # 从描述文本中提取图片 URL
+            # 從描述文字中提取圖片 URL
             additional_ref_images = []
             has_material_images = False
             
@@ -544,8 +544,8 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             ref_image_path = None
             if use_template:
                 ref_image_path = file_service.get_template_path(project_id)
-                # 注意：如果有风格描述，即使没有模板图片也允许生成
-                # 这个检查已经在 controller 层完成，这里不再检查
+                # 注意：如果有風格描述，即使沒有模板圖片也允許生成
+                # 這個檢查已經在 controller 層完成，這裡不再檢查
             
             # Generate image prompt
             page_data = page.get_outline_content() or {}
@@ -570,7 +570,7 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             if not image:
                 raise ValueError("Failed to generate image")
             
-            # 保存图片并创建历史版本记录
+            # 儲存圖片並建立歷史版本記錄
             image_path, next_version = save_image_with_version(
                 image, project_id, page_id, file_service, page_obj=page
             )
@@ -669,7 +669,7 @@ def edit_page_image_task(task_id: str, project_id: str, page_id: str,
             if not image:
                 raise ValueError("Failed to edit image")
             
-            # 保存编辑后的图片并创建历史版本记录
+            # 儲存編輯後的圖片並建立歷史版本記錄
             image_path, next_version = save_image_with_version(
                 image, project_id, page_id, file_service, page_obj=page
             )
@@ -723,7 +723,7 @@ def generate_material_image_task(task_id: str, project_id: str, prompt: str,
                                  temp_dir: str = None, app=None):
     """
     Background task for generating a material image
-    复用核心的generate_image逻辑，但保存到Material表而不是Page表
+    複用核心的generate_image邏輯，但儲存到Material表而不是Page表
     
     Note: app instance MUST be passed from the request context
     project_id can be None for global materials (but Task model requires a project_id,
@@ -742,7 +742,7 @@ def generate_material_image_task(task_id: str, project_id: str, prompt: str,
             task.status = 'PROCESSING'
             db.session.commit()
             
-            # Generate image (复用核心逻辑)
+            # Generate image (複用核心邏輯)
             logger.info(f"🎨 Generating material image with prompt: {prompt[:100]}...")
             image = ai_service.generate_image(
                 prompt=prompt,
@@ -755,7 +755,7 @@ def generate_material_image_task(task_id: str, project_id: str, prompt: str,
             if not image:
                 raise ValueError("Failed to generate image")
             
-            # 处理project_id：如果为'global'或None，转换为None
+            # 處理project_id：如果為'global'或None，轉換為None
             actual_project_id = None if (project_id == 'global' or project_id is None) else project_id
             
             # Save generated material image
@@ -824,27 +824,27 @@ def export_editable_pptx_with_recursive_analysis_task(
     app=None
 ):
     """
-    使用递归图片可编辑化分析导出可编辑PPTX的后台任务
+    使用遞迴圖片可編輯化分析匯出可編輯PPTX的後臺任務
     
-    这是新的架构方法，使用ImageEditabilityService进行递归版面分析。
-    与旧方法的区别：
-    - 不再假设图片是16:9
-    - 支持任意尺寸和分辨率
-    - 递归分析图片中的子图和图表
-    - 更智能的坐标映射和元素提取
+    這是新的架構方法，使用ImageEditabilityService進行遞迴版面分析。
+    與舊方法的區別：
+    - 不再假設圖片是16:9
+    - 支援任意尺寸和解析度
+    - 遞迴分析圖片中的子圖和圖表
+    - 更智慧的座標對映和元素提取
     - 不需要 ai_service（使用 ImageEditabilityService 和 MinerU）
     
     Args:
-        task_id: 任务ID
-        project_id: 项目ID
-        filename: 输出文件名
-        file_service: 文件服务实例
-        page_ids: 可选的页面ID列表（如果提供，只导出这些页面）
-        max_depth: 最大递归深度
-        max_workers: 并发处理数
-        export_extractor_method: 组件提取方法 ('mineru' 或 'hybrid')
-        export_inpaint_method: 背景修复方法 ('generative', 'baidu', 'hybrid')
-        app: Flask应用实例
+        task_id: 任務ID
+        project_id: 專案ID
+        filename: 輸出檔名
+        file_service: 檔案服務例項
+        page_ids: 可選的頁面ID列表（如果提供，只匯出這些頁面）
+        max_depth: 最大遞迴深度
+        max_workers: 併發處理數
+        export_extractor_method: 元件提取方法 ('mineru' 或 'hybrid')
+        export_inpaint_method: 背景修復方法 ('generative', 'baidu', 'hybrid')
+        app: Flask應用例項
     """
     logger.info(f"🚀 Task {task_id} started: export_editable_pptx_with_recursive_analysis (project={project_id}, depth={max_depth}, workers={max_workers}, extractor={export_extractor_method}, inpaint={export_inpaint_method})")
     
@@ -858,7 +858,7 @@ def export_editable_pptx_with_recursive_analysis_task(
         from models import Project
         from services.export_service import ExportService
         
-        logger.info(f"开始递归分析导出任务 {task_id} for project {project_id}")
+        logger.info(f"開始遞迴分析匯出任務 {task_id} for project {project_id}")
         
         try:
             # Get project
@@ -881,36 +881,36 @@ def export_editable_pptx_with_recursive_analysis_task(
             if not image_paths:
                 raise ValueError('No generated images found for project')
             
-            logger.info(f"找到 {len(image_paths)} 张图片")
+            logger.info(f"找到 {len(image_paths)} 張圖片")
             
-            # 初始化任务进度（包含消息日志）
+            # 初始化任務進度（包含訊息日誌）
             task = Task.query.get(task_id)
             task.set_progress({
                 "total": 100,  # 使用百分比
                 "completed": 0,
                 "failed": 0,
-                "current_step": "准备中...",
+                "current_step": "準備中...",
                 "percent": 0,
-                "messages": ["🚀 开始导出可编辑PPTX..."]  # 消息日志
+                "messages": ["🚀 開始匯出可編輯PPTX..."]  # 訊息日誌
             })
             db.session.commit()
             
-            # 进度回调函数 - 更新数据库中的进度
-            progress_messages = ["🚀 开始导出可编辑PPTX..."]
-            max_messages = 10  # 最多保留最近10条消息
+            # 進度回撥函式 - 更新資料庫中的進度
+            progress_messages = ["🚀 開始匯出可編輯PPTX..."]
+            max_messages = 10  # 最多保留最近10條訊息
             
             def progress_callback(step: str, message: str, percent: int):
-                """更新任务进度到数据库"""
+                """更新任務進度到資料庫"""
                 nonlocal progress_messages
                 try:
-                    # 添加新消息到日志
+                    # 新增新訊息到日誌
                     new_message = f"[{step}] {message}"
                     progress_messages.append(new_message)
-                    # 只保留最近的消息
+                    # 只保留最近的訊息
                     if len(progress_messages) > max_messages:
                         progress_messages = progress_messages[-max_messages:]
                     
-                    # 更新数据库
+                    # 更新資料庫
                     task = Task.query.get(task_id)
                     if task:
                         task.set_progress({
@@ -923,13 +923,13 @@ def export_editable_pptx_with_recursive_analysis_task(
                         })
                         db.session.commit()
                 except Exception as e:
-                    logger.warning(f"更新进度失败: {e}")
+                    logger.warning(f"更新進度失敗: {e}")
             
-            # Step 1: 准备工作
-            logger.info("Step 1: 准备工作...")
-            progress_callback("准备", f"找到 {len(image_paths)} 张幻灯片图片", 2)
+            # Step 1: 準備工作
+            logger.info("Step 1: 準備工作...")
+            progress_callback("準備", f"找到 {len(image_paths)} 張幻燈片圖片", 2)
             
-            # 准备输出路径
+            # 準備輸出路徑
             exports_dir = os.path.join(app.config['UPLOAD_FOLDER'], project_id, 'exports')
             os.makedirs(exports_dir, exist_ok=True)
             
@@ -943,25 +943,25 @@ def export_editable_pptx_with_recursive_analysis_task(
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 filename = f"{base_name}_{timestamp}.pptx"
                 output_path = os.path.join(exports_dir, filename)
-                logger.info(f"文件名冲突，使用新文件名: {filename}")
+                logger.info(f"檔名衝突，使用新檔名: {filename}")
             
-            # 获取第一张图片的尺寸作为参考
+            # 獲取第一張圖片的尺寸作為參考
             first_img = Image.open(image_paths[0])
             slide_width, slide_height = first_img.size
             first_img.close()
             
-            logger.info(f"幻灯片尺寸: {slide_width}x{slide_height}")
-            logger.info(f"递归深度: {max_depth}, 并发数: {max_workers}")
-            progress_callback("准备", f"幻灯片尺寸: {slide_width}×{slide_height}", 3)
+            logger.info(f"幻燈片尺寸: {slide_width}x{slide_height}")
+            logger.info(f"遞迴深度: {max_depth}, 併發數: {max_workers}")
+            progress_callback("準備", f"幻燈片尺寸: {slide_width}×{slide_height}", 3)
             
-            # Step 2: 创建文字属性提取器
+            # Step 2: 建立文字屬性提取器
             from services.image_editability import TextAttributeExtractorFactory
             text_attribute_extractor = TextAttributeExtractorFactory.create_caption_model_extractor()
-            progress_callback("准备", "文字属性提取器已初始化", 5)
+            progress_callback("準備", "文字屬性提取器已初始化", 5)
             
-            # Step 3: 调用导出方法（使用项目的导出设置）
-            logger.info(f"Step 3: 创建可编辑PPTX (extractor={export_extractor_method}, inpaint={export_inpaint_method})...")
-            progress_callback("配置", f"提取方法: {export_extractor_method}, 背景修复: {export_inpaint_method}", 6)
+            # Step 3: 呼叫匯出方法（使用專案的匯出設定）
+            logger.info(f"Step 3: 建立可編輯PPTX (extractor={export_extractor_method}, inpaint={export_inpaint_method})...")
+            progress_callback("配置", f"提取方法: {export_extractor_method}, 背景修復: {export_inpaint_method}", 6)
             
             _, export_warnings = ExportService.create_editable_pptx_with_recursive_analysis(
                 image_paths=image_paths,
@@ -976,20 +976,20 @@ def export_editable_pptx_with_recursive_analysis_task(
                 export_inpaint_method=export_inpaint_method
             )
             
-            logger.info(f"✓ 可编辑PPTX已创建: {output_path}")
+            logger.info(f"✓ 可編輯PPTX已建立: {output_path}")
             
-            # Step 4: 标记任务完成
+            # Step 4: 標記任務完成
             download_path = f"/files/{project_id}/exports/{filename}"
             
-            # 添加完成消息
-            progress_messages.append("✅ 导出完成！")
+            # 新增完成訊息
+            progress_messages.append("✅ 匯出完成！")
             
-            # 添加警告信息（如果有）
+            # 新增警告資訊（如果有）
             warning_messages = []
             if export_warnings and export_warnings.has_warnings():
                 warning_messages = export_warnings.to_summary()
                 progress_messages.extend(warning_messages)
-                logger.warning(f"导出有 {len(warning_messages)} 条警告")
+                logger.warning(f"匯出有 {len(warning_messages)} 條警告")
             
             task = Task.query.get(task_id)
             if task:
@@ -999,25 +999,25 @@ def export_editable_pptx_with_recursive_analysis_task(
                     "total": 100,
                     "completed": 100,
                     "failed": 0,
-                    "current_step": "✓ 导出完成",
+                    "current_step": "✓ 匯出完成",
                     "percent": 100,
                     "messages": progress_messages,
                     "download_url": download_path,
                     "filename": filename,
                     "method": "recursive_analysis",
                     "max_depth": max_depth,
-                    "warnings": warning_messages,  # 单独的警告列表
-                    "warning_details": export_warnings.to_dict() if export_warnings else {}  # 详细警告信息
+                    "warnings": warning_messages,  # 單獨的警告列表
+                    "warning_details": export_warnings.to_dict() if export_warnings else {}  # 詳細警告資訊
                 })
                 db.session.commit()
-                logger.info(f"✓ 任务 {task_id} 完成 - 递归分析导出成功（深度={max_depth}）")
+                logger.info(f"✓ 任務 {task_id} 完成 - 遞迴分析匯出成功（深度={max_depth}）")
         
         except Exception as e:
             import traceback
             error_detail = traceback.format_exc()
-            logger.error(f"✗ 任务 {task_id} 失败: {error_detail}")
+            logger.error(f"✗ 任務 {task_id} 失敗: {error_detail}")
             
-            # 标记任务失败
+            # 標記任務失敗
             task = Task.query.get(task_id)
             if task:
                 task.status = 'FAILED'

@@ -8,15 +8,15 @@ import { ReferenceFileCard } from './ReferenceFileCard';
 interface ProjectResourcesListProps {
   projectId: string | null;
   className?: string;
-  showFiles?: boolean; // 是否显示参考文件
-  showImages?: boolean; // 是否显示图片素材
+  showFiles?: boolean; // 是否顯示參考檔案
+  showImages?: boolean; // 是否顯示圖片素材
   onFileClick?: (fileId: string) => void;
   onImageClick?: (material: Material) => void;
 }
 
 /**
- * 项目资源列表组件
- * 统一展示项目的参考文件和图片素材
+ * 專案資源列表元件
+ * 統一展示專案的參考檔案和圖片素材
  */
 export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
   projectId,
@@ -34,7 +34,7 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
   const [deletingMaterialIds, setDeletingMaterialIds] = useState<Set<string>>(new Set());
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
 
-  // 加载素材列表
+  // 載入素材列表
   const loadMaterials = useCallback(async () => {
     if (!projectId || !showImages) return;
     
@@ -45,14 +45,14 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
         setMaterials(response.data.materials);
       }
     } catch (error: any) {
-      console.error('加载素材列表失败:', error);
-      show({ message: `加载素材列表失败: ${error.message || '未知错误'}`, type: 'error' });
+      console.error('載入素材列表失敗:', error);
+      show({ message: `載入素材列表失敗: ${error.message || '未知錯誤'}`, type: 'error' });
     } finally {
       setIsLoadingMaterials(false);
     }
   }, [projectId, showImages]);
 
-  // 加载文件列表
+  // 載入檔案列表
   const loadFiles = useCallback(async () => {
     if (!projectId || !showFiles) return;
     
@@ -63,7 +63,7 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
         setFiles(response.data.files);
       }
     } catch (error: any) {
-      console.error('加载文件列表失败:', error);
+      console.error('載入檔案列表失敗:', error);
     } finally {
       setIsLoadingFiles(false);
     }
@@ -74,7 +74,7 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
     loadFiles();
   }, [loadMaterials, loadFiles]);
 
-  // 删除素材
+  // 刪除素材
   const handleDeleteMaterial = async (
     e: React.MouseEvent<HTMLButtonElement>,
     materialId: string
@@ -86,11 +86,11 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
     try {
       await deleteMaterial(materialId);
       setMaterials(prev => prev.filter(m => m.id !== materialId));
-      show({ message: '素材已删除', type: 'success' });
+      show({ message: '素材已刪除', type: 'success' });
     } catch (error: any) {
-      console.error('删除素材失败:', error);
+      console.error('刪除素材失敗:', error);
       show({
-        message: error?.response?.data?.error?.message || error.message || '删除素材失败',
+        message: error?.response?.data?.error?.message || error.message || '刪除素材失敗',
         type: 'error',
       });
     } finally {
@@ -118,33 +118,33 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
     m.filename ||
     m.url;
 
-  // 如果没有项目ID，不显示
+  // 如果沒有專案ID，不顯示
   if (!projectId) {
     return null;
   }
 
-  // 如果两个都不显示任何内容，则不渲染
+  // 如果兩個都不顯示任何內容，則不渲染
   if ((!showFiles || files.length === 0) && (!showImages || materials.length === 0)) {
     return null;
   }
 
   return (
     <div className={className}>
-      {/* 参考文件列表 */}
+      {/* 參考檔案列表 */}
       {showFiles && files.length > 0 && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <FileText size={16} className="text-gray-500" />
               <span className="text-sm font-medium text-gray-700">
-                已上传的文件 ({files.length})
+                已上傳的檔案 ({files.length})
               </span>
             </div>
             <button
               onClick={loadFiles}
               disabled={isLoadingFiles}
               className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              title="刷新列表"
+              title="重新整理列表"
             >
               <RefreshCw size={14} className={isLoadingFiles ? 'animate-spin' : ''} />
             </button>
@@ -164,27 +164,27 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
         </div>
       )}
 
-      {/* 图片素材列表 */}
+      {/* 圖片素材列表 */}
       {showImages && materials.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <ImageIcon size={16} className="text-gray-500" />
               <span className="text-sm font-medium text-gray-700">
-                已上传图片 ({materials.length})
+                已上傳圖片 ({materials.length})
               </span>
             </div>
             <button
               onClick={loadMaterials}
               disabled={isLoadingMaterials}
               className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              title="刷新列表"
+              title="重新整理列表"
             >
               <RefreshCw size={14} className={isLoadingMaterials ? 'animate-spin' : ''} />
             </button>
           </div>
 
-          {/* 横向滚动的图片列表 */}
+          {/* 橫向滾動的圖片列表 */}
           <div className="flex gap-3 overflow-x-auto pb-2">
             {materials.map((material) => {
               const isDeleting = deletingMaterialIds.has(material.id);
@@ -194,11 +194,11 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
                   className="relative flex-shrink-0 group cursor-pointer"
                   onClick={() => onImageClick?.(material)}
                 >
-                  {/* 图片容器 */}
+                  {/* 圖片容器 */}
                   <div className="relative w-32 h-32 bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-banana-400 transition-colors">
                     {failedImageUrls.has(material.url) ? (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center p-2">
-                        图片加载失败
+                        圖片載入失敗
                       </div>
                     ) : (
                       <img
@@ -209,12 +209,12 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
                       />
                     )}
 
-                    {/* 删除按钮 */}
+                    {/* 刪除按鈕 */}
                     <button
                       onClick={(e) => handleDeleteMaterial(e, material.id)}
                       disabled={isDeleting}
                       className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 active:scale-95 disabled:opacity-60"
-                      title="删除此素材"
+                      title="刪除此素材"
                     >
                       {isDeleting ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -223,7 +223,7 @@ export const ProjectResourcesList: React.FC<ProjectResourcesListProps> = ({
                       )}
                     </button>
 
-                    {/* 悬浮时显示文件名 */}
+                    {/* 懸浮時顯示檔名 */}
                     <div className="absolute inset-x-0 bottom-0 bg-black/70 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition-opacity truncate">
                       {getMaterialDisplayName(material)}
                     </div>

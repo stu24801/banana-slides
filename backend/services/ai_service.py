@@ -30,17 +30,17 @@ logger = logging.getLogger(__name__)
 
 
 class ProjectContext:
-    """项目上下文数据类，统一管理 AI 需要的所有项目信息"""
+    """專案上下文資料類，統一管理 AI 需要的所有專案資訊"""
     
     def __init__(self, project_or_dict, reference_files_content: Optional[List[Dict[str, str]]] = None):
         """
         Args:
-            project_or_dict: 项目对象（Project model）或项目字典（project.to_dict()）
-            reference_files_content: 参考文件内容列表
+            project_or_dict: 專案物件（Project model）或專案字典（project.to_dict()）
+            reference_files_content: 參考檔案內容列表
         """
-        # 支持直接传入 Project 对象，避免 to_dict() 调用，提升性能
+        # 支援直接傳入 Project 物件，避免 to_dict() 呼叫，提升效能
         if hasattr(project_or_dict, 'idea_prompt'):
-            # 是 Project 对象
+            # 是 Project 物件
             self.idea_prompt = project_or_dict.idea_prompt
             self.outline_text = project_or_dict.outline_text
             self.description_text = project_or_dict.description_text
@@ -55,7 +55,7 @@ class ProjectContext:
         self.reference_files_content = reference_files_content or []
     
     def to_dict(self) -> Dict:
-        """转换为字典，方便传递"""
+        """轉換為字典，方便傳遞"""
         return {
             'idea_prompt': self.idea_prompt,
             'outline_text': self.outline_text,
@@ -78,7 +78,7 @@ class AIService:
         """
         config = get_config()
 
-        # 优先使用 Flask app.config（可由 Settings 覆盖），否则回退到 Config 默认值
+        # 優先使用 Flask app.config（可由 Settings 覆蓋），否則回退到 Config 預設值
         try:
             from flask import current_app, has_app_context
         except ImportError:
@@ -88,7 +88,7 @@ class AIService:
         if has_app_context() and current_app and hasattr(current_app, "config"):
             self.text_model = current_app.config.get("TEXT_MODEL", config.TEXT_MODEL)
             self.image_model = current_app.config.get("IMAGE_MODEL", config.IMAGE_MODEL)
-            # 分离的文本和图像推理配置
+            # 分離的文字和影象推理配置
             self.enable_text_reasoning = current_app.config.get("ENABLE_TEXT_REASONING", False)
             self.text_thinking_budget = current_app.config.get("TEXT_THINKING_BUDGET", 1024)
             self.enable_image_reasoning = current_app.config.get("ENABLE_IMAGE_REASONING", False)
@@ -107,41 +107,41 @@ class AIService:
     
     def _get_text_thinking_budget(self) -> int:
         """
-        获取文本生成的思考负载
+        獲取文字生成的思考負載
         
         Returns:
-            如果启用文本推理则返回配置的 budget，否则返回 0
+            如果啟用文字推理則返回配置的 budget，否則返回 0
         """
         return self.text_thinking_budget if self.enable_text_reasoning else 0
     
     def _get_image_thinking_budget(self) -> int:
         """
-        获取图像生成的思考负载
+        獲取影象生成的思考負載
         
         Returns:
-            如果启用图像推理则返回配置的 budget，否则返回 0
+            如果啟用影象推理則返回配置的 budget，否則返回 0
         """
         return self.image_thinking_budget if self.enable_image_reasoning else 0
     
     @staticmethod
     def extract_image_urls_from_markdown(text: str) -> List[str]:
         """
-        从 markdown 文本中提取图片 URL
+        從 markdown 文字中提取圖片 URL
         
         Args:
-            text: Markdown 文本，可能包含 ![](url) 格式的图片
+            text: Markdown 文字，可能包含 ![](url) 格式的圖片
             
         Returns:
-            图片 URL 列表（包括 http/https URL 和 /files/ 开头的本地路径）
+            圖片 URL 列表（包括 http/https URL 和 /files/ 開頭的本地路徑）
         """
         if not text:
             return []
         
-        # 匹配 markdown 图片语法: ![](url) 或 ![alt](url)
+        # 匹配 markdown 圖片語法: ![](url) 或 ![alt](url)
         pattern = r'!\[.*?\]\((.*?)\)'
         matches = re.findall(pattern, text)
         
-        # 过滤掉空字符串，支持 http/https URL 和 /files/ 开头的本地路径（包括 mineru、materials 等）
+        # 過濾掉空字串，支援 http/https URL 和 /files/ 開頭的本地路徑（包括 mineru、materials 等）
         urls = []
         for url in matches:
             url = url.strip()
@@ -153,28 +153,28 @@ class AIService:
     @staticmethod
     def remove_markdown_images(text: str) -> str:
         """
-        从文本中移除 Markdown 图片链接，只保留 alt text（描述文字）
+        從文字中移除 Markdown 圖片連結，只保留 alt text（描述文字）
         
         Args:
-            text: 包含 Markdown 图片语法的文本
+            text: 包含 Markdown 圖片語法的文字
             
         Returns:
-            移除图片链接后的文本，保留描述文字
+            移除圖片連結後的文字，保留描述文字
         """
         if not text:
             return text
         
-        # 将 ![描述文字](url) 替换为 描述文字
-        # 如果没有描述文字（空的 alt text），则完全删除该图片链接
+        # 將 ![描述文字](url) 替換為 描述文字
+        # 如果沒有描述文字（空的 alt text），則完全刪除該圖片連結
         def replace_image(match):
             alt_text = match.group(1).strip()
-            # 如果有描述文字，保留它；否则删除整个链接
+            # 如果有描述文字，保留它；否則刪除整個連結
             return alt_text if alt_text else ''
         
         pattern = r'!\[(.*?)\]\([^\)]+\)'
         cleaned_text = re.sub(pattern, replace_image, text)
         
-        # 清理可能产生的多余空行
+        # 清理可能產生的多餘空行
         cleaned_text = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_text)
         
         return cleaned_text
@@ -186,29 +186,29 @@ class AIService:
     )
     def generate_json(self, prompt: str, thinking_budget: int = 1000) -> Union[Dict, List]:
         """
-        生成并解析JSON，如果解析失败则重新生成
+        生成並解析JSON，如果解析失敗則重新生成
         
         Args:
-            prompt: 生成提示词
-            thinking_budget: 思考预算（会根据 enable_text_reasoning 配置自动调整）
+            prompt: 生成提示詞
+            thinking_budget: 思考預算（會根據 enable_text_reasoning 配置自動調整）
             
         Returns:
-            解析后的JSON对象（字典或列表）
+            解析後的JSON物件（字典或列表）
             
         Raises:
-            json.JSONDecodeError: JSON解析失败（重试3次后仍失败）
+            json.JSONDecodeError: JSON解析失敗（重試3次後仍失敗）
         """
-        # 调用AI生成文本（根据 enable_text_reasoning 配置调整 thinking_budget）
+        # 呼叫AI生成文字（根據 enable_text_reasoning 配置調整 thinking_budget）
         actual_budget = self._get_text_thinking_budget()
         response_text = self.text_provider.generate_text(prompt, thinking_budget=actual_budget)
         
-        # 清理响应文本：移除markdown代码块标记和多余空白
+        # 清理響應文字：移除markdown程式碼塊標記和多餘空白
         cleaned_text = response_text.strip().strip("```json").strip("```").strip()
         
         try:
             return json.loads(cleaned_text)
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON解析失败，将重新生成。原始文本: {cleaned_text[:200]}... 错误: {str(e)}")
+            logger.warning(f"JSON解析失敗，將重新生成。原始文字: {cleaned_text[:200]}... 錯誤: {str(e)}")
             raise
     
     @retry(
@@ -218,21 +218,21 @@ class AIService:
     )
     def generate_json_with_image(self, prompt: str, image_path: str, thinking_budget: int = 1000) -> Union[Dict, List]:
         """
-        带图片输入的JSON生成，如果解析失败则重新生成（最多重试3次）
+        帶圖片輸入的JSON生成，如果解析失敗則重新生成（最多重試3次）
         
         Args:
-            prompt: 生成提示词
-            image_path: 图片文件路径
-            thinking_budget: 思考预算（会根据 enable_text_reasoning 配置自动调整）
+            prompt: 生成提示詞
+            image_path: 圖片檔案路徑
+            thinking_budget: 思考預算（會根據 enable_text_reasoning 配置自動調整）
             
         Returns:
-            解析后的JSON对象（字典或列表）
+            解析後的JSON物件（字典或列表）
             
         Raises:
-            json.JSONDecodeError: JSON解析失败（重试3次后仍失败）
-            ValueError: text_provider 不支持图片输入
+            json.JSONDecodeError: JSON解析失敗（重試3次後仍失敗）
+            ValueError: text_provider 不支援圖片輸入
         """
-        # 调用AI生成文本（带图片），根据 enable_text_reasoning 配置调整 thinking_budget
+        # 呼叫AI生成文字（帶圖片），根據 enable_text_reasoning 配置調整 thinking_budget
         actual_budget = self._get_text_thinking_budget()
         if hasattr(self.text_provider, 'generate_with_image'):
             response_text = self.text_provider.generate_with_image(
@@ -247,27 +247,27 @@ class AIService:
                 thinking_budget=actual_budget
             )
         else:
-            raise ValueError("text_provider 不支持图片输入")
+            raise ValueError("text_provider 不支援圖片輸入")
         
-        # 清理响应文本：移除markdown代码块标记和多余空白
+        # 清理響應文字：移除markdown程式碼塊標記和多餘空白
         cleaned_text = response_text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         
         try:
             return json.loads(cleaned_text)
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON解析失败（带图片），将重新生成。原始文本: {cleaned_text[:200]}... 错误: {str(e)}")
+            logger.warning(f"JSON解析失敗（帶圖片），將重新生成。原始文字: {cleaned_text[:200]}... 錯誤: {str(e)}")
             raise
     
     @staticmethod
     def _convert_mineru_path_to_local(mineru_path: str) -> Optional[str]:
         """
-        将 /files/mineru/{extract_id}/{rel_path} 格式的路径转换为本地文件系统路径（支持前缀匹配）
+        將 /files/mineru/{extract_id}/{rel_path} 格式的路徑轉換為本地檔案系統路徑（支援字首匹配）
         
         Args:
-            mineru_path: MinerU URL 路径，格式为 /files/mineru/{extract_id}/{rel_path}
+            mineru_path: MinerU URL 路徑，格式為 /files/mineru/{extract_id}/{rel_path}
             
         Returns:
-            本地文件系统路径，如果转换失败则返回 None
+            本地檔案系統路徑，如果轉換失敗則返回 None
         """
         from utils.path_utils import find_mineru_file_with_prefix
         
@@ -277,22 +277,22 @@ class AIService:
     @staticmethod
     def download_image_from_url(url: str) -> Optional[Image.Image]:
         """
-        从 URL 下载图片并返回 PIL Image 对象
+        從 URL 下載圖片並返回 PIL Image 物件
         
         Args:
-            url: 图片 URL
+            url: 圖片 URL
             
         Returns:
-            PIL Image 对象，如果下载失败则返回 None
+            PIL Image 物件，如果下載失敗則返回 None
         """
         try:
             logger.debug(f"Downloading image from URL: {url}")
             response = requests.get(url, timeout=30, stream=True)
             response.raise_for_status()
             
-            # 从响应内容创建 PIL Image
+            # 從響應內容建立 PIL Image
             image = Image.open(response.raw)
-            # 确保图片被加载
+            # 確保圖片被載入
             image.load()
             logger.debug(f"Successfully downloaded image: {image.size}, {image.mode}")
             return image
@@ -306,7 +306,7 @@ class AIService:
         Based on demo.py gen_outline()
         
         Args:
-            project_context: 项目上下文对象，包含所有原始信息
+            project_context: 專案上下文物件，包含所有原始資訊
             
         Returns:
             List of outline items (may contain parts with pages or direct pages)
@@ -321,7 +321,7 @@ class AIService:
         This method analyzes the text and splits it into pages without modifying the original text
         
         Args:
-            project_context: 项目上下文对象，包含所有原始信息
+            project_context: 專案上下文物件，包含所有原始資訊
         
         Returns:
             List of outline items (may contain parts with pages or direct pages)
@@ -355,7 +355,7 @@ class AIService:
         Based on demo.py gen_desc() logic
         
         Args:
-            project_context: 项目上下文对象，包含所有原始信息
+            project_context: 專案上下文物件，包含所有原始資訊
             outline: Complete outline
             page_outline: Outline for this specific page
             page_index: Page number (1-indexed)
@@ -374,7 +374,7 @@ class AIService:
             language=language
         )
         
-        # 根据 enable_text_reasoning 配置调整 thinking_budget
+        # 根據 enable_text_reasoning 配置調整 thinking_budget
         actual_budget = self._get_text_thinking_budget()
         response_text = self.text_provider.generate_text(desc_prompt, thinking_budget=actual_budget)
         
@@ -409,10 +409,10 @@ class AIService:
             page: Page outline data
             page_desc: Page description text
             page_index: Page number (1-indexed)
-            has_material_images: 是否有素材图片（从项目描述中提取的图片）
+            has_material_images: 是否有素材圖片（從專案描述中提取的圖片）
             extra_requirements: Optional extra requirements to apply to all pages
             language: Output language
-            has_template: 是否有模板图片（False表示无模板图模式）
+            has_template: 是否有模板圖片（False表示無模板圖模式）
         
         Returns:
             Image generation prompt
@@ -425,8 +425,8 @@ class AIService:
         else:
             current_section = f"{page.get('title', 'Untitled')}"
         
-        # 在传给文生图模型之前，移除 Markdown 图片链接
-        # 图片本身已经通过 additional_ref_images 传递，只保留文字描述
+        # 在傳給文生圖模型之前，移除 Markdown 圖片連結
+        # 圖片本身已經透過 additional_ref_images 傳遞，只保留文字描述
         cleaned_page_desc = self.remove_markdown_images(page_desc)
         
         prompt = get_image_generation_prompt(
@@ -454,7 +454,7 @@ class AIService:
             ref_image_path: Path to reference image (optional). If None, will generate based on prompt only.
             aspect_ratio: Image aspect ratio
             resolution: Image resolution (note: OpenAI format only supports 1K)
-            additional_ref_images: 额外的参考图片列表，可以是本地路径、URL 或 PIL Image 对象
+            additional_ref_images: 額外的參考圖片列表，可以是本地路徑、URL 或 PIL Image 物件
         
         Returns:
             PIL Image object or None if failed
@@ -468,36 +468,36 @@ class AIService:
                 logger.debug(f"Additional reference images: {len(additional_ref_images)}")
             logger.debug(f"Config - aspect_ratio: {aspect_ratio}, resolution: {resolution}")
 
-            # 构建参考图片列表
+            # 構建參考圖片列表
             ref_images = []
             
-            # 添加主参考图片（如果提供了路径）
+            # 新增主參考圖片（如果提供了路徑）
             if ref_image_path:
                 if not os.path.exists(ref_image_path):
                     raise FileNotFoundError(f"Reference image not found: {ref_image_path}")
                 main_ref_image = Image.open(ref_image_path)
                 ref_images.append(main_ref_image)
             
-            # 添加额外的参考图片
+            # 新增額外的參考圖片
             if additional_ref_images:
                 for ref_img in additional_ref_images:
                     if isinstance(ref_img, Image.Image):
-                        # 已经是 PIL Image 对象
+                        # 已經是 PIL Image 物件
                         ref_images.append(ref_img)
                     elif isinstance(ref_img, str):
-                        # 可能是本地路径或 URL
+                        # 可能是本地路徑或 URL
                         if os.path.exists(ref_img):
-                            # 本地路径
+                            # 本地路徑
                             ref_images.append(Image.open(ref_img))
                         elif ref_img.startswith('http://') or ref_img.startswith('https://'):
-                            # URL，需要下载
+                            # URL，需要下載
                             downloaded_img = self.download_image_from_url(ref_img)
                             if downloaded_img:
                                 ref_images.append(downloaded_img)
                             else:
                                 logger.warning(f"Failed to download image from URL: {ref_img}, skipping...")
                         elif ref_img.startswith('/files/mineru/'):
-                            # MinerU 本地文件路径，需要转换为文件系统路径（支持前缀匹配）
+                            # MinerU 本地檔案路徑，需要轉換為檔案系統路徑（支援字首匹配）
                             local_path = self._convert_mineru_path_to_local(ref_img)
                             if local_path and os.path.exists(local_path):
                                 ref_images.append(Image.open(local_path))
@@ -510,8 +510,8 @@ class AIService:
             logger.debug(f"Calling image provider for generation with {len(ref_images)} reference images...")
             logger.debug(f"Enable image reasoning/thinking: {self.enable_image_reasoning}, budget: {self._get_image_thinking_budget()}")
             
-            # 使用 image_provider 生成图片
-            # 根据 enable_image_reasoning 配置控制图像生成的思考模式
+            # 使用 image_provider 生成圖片
+            # 根據 enable_image_reasoning 配置控制影象生成的思考模式
             return self.image_provider.generate_image(
                 prompt=prompt,
                 ref_images=ref_images if ref_images else None,
@@ -540,7 +540,7 @@ class AIService:
             aspect_ratio: Image aspect ratio
             resolution: Image resolution
             original_description: Original page description to include in prompt
-            additional_ref_images: 额外的参考图片列表，可以是本地路径、URL 或 PIL Image 对象
+            additional_ref_images: 額外的參考圖片列表，可以是本地路徑、URL 或 PIL Image 物件
         
         Returns:
             PIL Image object or None if failed
@@ -554,10 +554,10 @@ class AIService:
     
     def parse_description_to_outline(self, project_context: ProjectContext, language='zh') -> List[Dict]:
         """
-        从描述文本解析出大纲结构
+        從描述文字解析出大綱結構
         
         Args:
-            project_context: 项目上下文对象，包含所有原始信息
+            project_context: 專案上下文物件，包含所有原始資訊
         
         Returns:
             List of outline items (may contain parts with pages or direct pages)
@@ -570,11 +570,11 @@ class AIService:
                                                outline: List[Dict],
                                                language='zh') -> List[str]:
         """
-        从描述文本切分出每页描述
+        從描述文字切分出每頁描述
         
         Args:
-            project_context: 项目上下文对象，包含所有原始信息
-            outline: 已解析出的大纲结构
+            project_context: 專案上下文物件，包含所有原始資訊
+            outline: 已解析出的大綱結構
         
         Returns:
             List of page descriptions (strings), one for each page in the outline
@@ -582,7 +582,7 @@ class AIService:
         split_prompt = get_description_split_prompt(project_context, outline, language)
         descriptions = self.generate_json(split_prompt, thinking_budget=1000)
         
-        # 确保返回的是字符串列表
+        # 確保返回的是字串列表
         if isinstance(descriptions, list):
             return [str(desc) for desc in descriptions]
         else:
@@ -593,16 +593,16 @@ class AIService:
                       previous_requirements: Optional[List[str]] = None,
                       language='zh') -> List[Dict]:
         """
-        根据用户要求修改已有大纲
+        根據使用者要求修改已有大綱
         
         Args:
-            current_outline: 当前的大纲结构
-            user_requirement: 用户的新要求
-            project_context: 项目上下文对象，包含所有原始信息
-            previous_requirements: 之前的修改要求列表（可选）
+            current_outline: 當前的大綱結構
+            user_requirement: 使用者的新要求
+            project_context: 專案上下文物件，包含所有原始資訊
+            previous_requirements: 之前的修改要求列表（可選）
         
         Returns:
-            修改后的大纲结构
+            修改後的大綱結構
         """
         refinement_prompt = get_outline_refinement_prompt(
             current_outline=current_outline,
@@ -620,17 +620,17 @@ class AIService:
                            previous_requirements: Optional[List[str]] = None,
                            language='zh') -> List[str]:
         """
-        根据用户要求修改已有页面描述
+        根據使用者要求修改已有頁面描述
         
         Args:
-            current_descriptions: 当前的页面描述列表，每个元素包含 {index, title, description_content}
-            user_requirement: 用户的新要求
-            project_context: 项目上下文对象，包含所有原始信息
-            outline: 完整的大纲结构（可选）
-            previous_requirements: 之前的修改要求列表（可选）
+            current_descriptions: 當前的頁面描述列表，每個元素包含 {index, title, description_content}
+            user_requirement: 使用者的新要求
+            project_context: 專案上下文物件，包含所有原始資訊
+            outline: 完整的大綱結構（可選）
+            previous_requirements: 之前的修改要求列表（可選）
         
         Returns:
-            修改后的页面描述列表（字符串列表）
+            修改後的頁面描述列表（字串列表）
         """
         refinement_prompt = get_descriptions_refinement_prompt(
             current_descriptions=current_descriptions,
@@ -642,7 +642,7 @@ class AIService:
         )
         descriptions = self.generate_json(refinement_prompt, thinking_budget=1000)
         
-        # 确保返回的是字符串列表
+        # 確保返回的是字串列表
         if isinstance(descriptions, list):
             return [str(desc) for desc in descriptions]
         else:

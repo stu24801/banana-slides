@@ -1,7 +1,7 @@
 """
-AI服务Mock测试
+AI服務Mock測試
 
-验证AI服务被正确mock，不会真正调用外部API
+驗證AI服務被正確mock，不會真正呼叫外部API
 """
 
 import pytest
@@ -9,59 +9,59 @@ from unittest.mock import patch, MagicMock
 
 
 class TestAIMock:
-    """AI Mock测试"""
+    """AI Mock測試"""
     
     def test_ai_service_is_mocked(self, mock_ai_service):
-        """验证AI服务被正确mock"""
-        # 调用mock的方法
-        outline = mock_ai_service.generate_outline("测试prompt")
+        """驗證AI服務被正確mock"""
+        # 呼叫mock的方法
+        outline = mock_ai_service.generate_outline("測試prompt")
         
-        # 验证返回mock数据
+        # 驗證返回mock資料
         assert len(outline) == 2
-        assert outline[0]['title'] == '测试页面1'
+        assert outline[0]['title'] == '測試頁面1'
         
-        # 验证方法被调用
-        mock_ai_service.generate_outline.assert_called_once_with("测试prompt")
+        # 驗證方法被呼叫
+        mock_ai_service.generate_outline.assert_called_once_with("測試prompt")
     
     def test_description_generation_mocked(self, mock_ai_service):
-        """验证描述生成被mock"""
+        """驗證描述生成被mock"""
         desc = mock_ai_service.generate_page_description(
             "idea", [], {}, 1
         )
         
-        assert desc['title'] == '测试标题'
+        assert desc['title'] == '測試標題'
         assert 'text_content' in desc
     
     def test_image_generation_mocked(self, mock_ai_service):
-        """验证图片生成被mock"""
+        """驗證圖片生成被mock"""
         image = mock_ai_service.generate_image("prompt", "ref.png")
         
-        # 应该返回一个PIL Image对象
+        # 應該返回一個PIL Image物件
         assert image is not None
         assert image.size == (1920, 1080)
     
     def test_no_real_api_calls(self, mock_ai_service):
-        """确保没有真实API调用"""
-        # 多次调用
+        """確保沒有真實API呼叫"""
+        # 多次呼叫
         for _ in range(10):
             mock_ai_service.generate_outline("test")
             mock_ai_service.generate_page_description("idea", [], {}, 1)
         
-        # 验证调用次数
+        # 驗證呼叫次數
         assert mock_ai_service.generate_outline.call_count == 10
         assert mock_ai_service.generate_page_description.call_count == 10
 
 
 class TestEnvironmentFlags:
-    """环境标志测试"""
+    """環境標誌測試"""
     
     def test_testing_flag_is_set(self):
-        """验证测试标志已设置"""
+        """驗證測試標誌已設定"""
         import os
         assert os.environ.get('TESTING') == 'true'
     
     def test_mock_ai_flag_is_set(self):
-        """验证mock AI标志已设置"""
+        """驗證mock AI標誌已設定"""
         import os
         assert os.environ.get('USE_MOCK_AI') == 'true'
 

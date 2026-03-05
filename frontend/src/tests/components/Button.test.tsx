@@ -1,5 +1,5 @@
 /**
- * Button 组件测试
+ * Button 元件測試
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -28,14 +28,14 @@ describe('Button Component', () => {
   it('applies gradient styles for primary variant', () => {
     render(<Button>Primary</Button>)
     const button = screen.getByText('Primary')
-    // 实际使用gradient样式
+    // 實際使用gradient樣式
     expect(button).toHaveClass('bg-gradient-to-r')
   })
 
   it('applies border styles for secondary variant', () => {
     render(<Button variant="secondary">Secondary</Button>)
     const button = screen.getByText('Secondary')
-    // secondary使用border样式
+    // secondary使用border樣式
     expect(button).toHaveClass('border-banana-500')
   })
 
@@ -43,7 +43,7 @@ describe('Button Component', () => {
     render(<Button loading>Loading</Button>)
     const button = screen.getByRole('button')
     expect(button).toBeDisabled()
-    // 应该有loading spinner
+    // 應該有loading spinner
     expect(button.querySelector('svg')).toBeInTheDocument()
   })
 

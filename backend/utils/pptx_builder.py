@@ -85,7 +85,7 @@ class PPTXBuilder:
     MIN_FONT_SIZE = 6   # Minimum readable size
     MAX_FONT_SIZE = 200  # Maximum reasonable size
     
-    # 项目内置字体（Noto Sans CJK SC，支持中日韩文字）
+    # 專案內建字型（Noto Sans CJK SC，支援中日韓文字）
     FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "fonts", "NotoSansSC-Regular.ttf")
     
     # Font cache: {size_pt: ImageFont}
@@ -419,7 +419,7 @@ class PPTXBuilder:
         # Calculate font size
         font_size = self.calculate_font_size(bbox, actual_text, text_level, dpi)
         
-        # Determine effective alignment - text_style优先，否则使用参数
+        # Determine effective alignment - text_style優先，否則使用引數
         effective_align = align
         if text_style and hasattr(text_style, 'text_alignment') and text_style.text_alignment:
             effective_align = text_style.text_alignment

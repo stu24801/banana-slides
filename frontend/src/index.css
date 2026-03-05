@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  /* 主色 - 黄色系 */
+  /* 主色 - 黃色系 */
   --banana-yellow: #FFD700;
   --banana-yellow-light: #FFE44D;
   --banana-yellow-dark: #FFC700;
@@ -22,7 +22,7 @@
   --error: #FF4D4F;
   --info: #1890FF;
 
-  /* 过渡 */
+  /* 過渡 */
   --transition-fast: 150ms ease-in-out;
   --transition-base: 250ms ease-in-out;
   --transition-slow: 350ms ease-in-out;
@@ -38,7 +38,7 @@ body {
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 移动端优化 */
+  /* 移動端最佳化 */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -47,7 +47,7 @@ body {
   min-height: 100vh;
 }
 
-/* 自定义滚动条 */
+/* 自定義捲軸 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -66,23 +66,23 @@ body {
   background: var(--banana-yellow-dark);
 }
 
-/* 移动端触摸优化 */
+/* 移動端觸控最佳化 */
 .touch-manipulation {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 移动端按钮优化 - 仅针对主要交互按钮 */
+/* 移動端按鈕最佳化 - 僅針對主要互動按鈕 */
 @media (max-width: 640px) {
   .btn-touch-target,
   button:not(.no-min-touch-target):not([class*="w-"]):not([class*="h-"]),
   a:not(.no-min-touch-target):not([class*="w-"]):not([class*="h-"]) {
-    min-height: 44px; /* iOS推荐的最小触摸目标 */
+    min-height: 44px; /* iOS推薦的最小觸控目標 */
     min-width: 44px;
   }
 }
 
-/* 渐变文本动画 */
+/* 漸變文字動畫 */
 @keyframes gradient {
   0%, 100% {
     background-position: 0% 50%;
@@ -92,7 +92,7 @@ body {
   }
 }
 
-/* Markdown 内容样式 - 仅保留基础容器样式，具体样式由 Markdown.tsx 组件内的 Tailwind 类处理 */
+/* Markdown 內容樣式 - 僅保留基礎容器樣式，具體樣式由 Markdown.tsx 元件內的 Tailwind 類處理 */
 .markdown-content {
   line-height: 1.6;
 }

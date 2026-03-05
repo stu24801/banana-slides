@@ -24,7 +24,7 @@ const statusConfig: Record<PageStatus, { label: string; className: string }> = {
     className: 'bg-green-100 text-green-600',
   },
   FAILED: {
-    label: '失败',
+    label: '失敗',
     className: 'bg-red-100 text-red-600',
   },
 };

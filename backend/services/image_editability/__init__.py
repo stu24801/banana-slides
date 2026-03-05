@@ -1,31 +1,31 @@
 """
-图片可编辑化服务模块
+圖片可編輯化服務模組
 
-核心设计：
-- 无状态服务 - 线程安全，可并行调用
-- 依赖注入 - 通过配置对象注入所有依赖
-- 单一职责 - 只负责单张图片的可编辑化，批量处理由调用者控制
+核心設計：
+- 無狀態服務 - 執行緒安全，可並行呼叫
+- 依賴注入 - 透過配置物件注入所有依賴
+- 單一職責 - 只負責單張圖片的可編輯化，批次處理由呼叫者控制
 
-组件：
-- 数据模型（BBox, EditableElement, EditableImage）
-- 元素提取器（ElementExtractor及其实现）
-- Inpaint提供者（InpaintProvider及其实现）
-- 工厂和配置（ServiceConfig）
-- 主服务类（ImageEditabilityService）
+元件：
+- 資料模型（BBox, EditableElement, EditableImage）
+- 元素提取器（ElementExtractor及其實現）
+- Inpaint提供者（InpaintProvider及其實現）
+- 工廠和配置（ServiceConfig）
+- 主服務類（ImageEditabilityService）
 
 Example:
     >>> from services.image_editability import ServiceConfig, ImageEditabilityService
     >>> 
-    >>> # 创建配置
+    >>> # 建立配置
     >>> config = ServiceConfig.from_defaults(mineru_token="your_token")
     >>> 
-    >>> # 创建服务
+    >>> # 建立服務
     >>> service = ImageEditabilityService(config)
     >>> 
-    >>> # 串行处理
+    >>> # 序列處理
     >>> result = service.make_image_editable("image.png")
     >>> 
-    >>> # 并行处理（推荐）
+    >>> # 並行處理（推薦）
     >>> from concurrent.futures import ThreadPoolExecutor, as_completed
     >>> 
     >>> images = ["img1.png", "img2.png", "img3.png"]
@@ -36,10 +36,10 @@ Example:
     ...                for i, future in enumerate(as_completed(futures))}
 """
 
-# 数据模型
+# 資料模型
 from .data_models import BBox, EditableElement, EditableImage
 
-# 坐标映射
+# 座標對映
 from .coordinate_mapper import CoordinateMapper
 
 # 元素提取器
@@ -68,7 +68,7 @@ from .inpaint_providers import (
     InpaintProviderRegistry
 )
 
-# 文字属性提取器
+# 文字屬性提取器
 from .text_attribute_extractors import (
     TextStyleResult,
     TextAttributeExtractor,
@@ -76,7 +76,7 @@ from .text_attribute_extractors import (
     TextAttributeExtractorRegistry
 )
 
-# 工厂和配置
+# 工廠和配置
 from .factories import (
     ExtractorFactory,
     InpaintProviderFactory,
@@ -84,15 +84,15 @@ from .factories import (
     ServiceConfig
 )
 
-# 主服务
+# 主服務
 from .service import ImageEditabilityService
 
 __all__ = [
-    # 数据模型
+    # 資料模型
     'BBox',
     'EditableElement',
     'EditableImage',
-    # 坐标映射
+    # 座標對映
     'CoordinateMapper',
     # 元素提取器
     'ElementExtractor',
@@ -111,17 +111,17 @@ __all__ = [
     'BaiduInpaintProvider',
     'HybridInpaintProvider',
     'InpaintProviderRegistry',
-    # 文字属性提取器
+    # 文字屬性提取器
     'TextStyleResult',
     'TextAttributeExtractor',
     'CaptionModelTextAttributeExtractor',
     'TextAttributeExtractorRegistry',
-    # 工厂和配置
+    # 工廠和配置
     'ExtractorFactory',
     'InpaintProviderFactory',
     'TextAttributeExtractorFactory',
     'ServiceConfig',
-    # 主服务
+    # 主服務
     'ImageEditabilityService',
 ]
 

@@ -11,26 +11,26 @@ class Settings(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, default=1)
     ai_provider_format = db.Column(db.String(20), nullable=False, default='gemini')  # AI提供商格式: openai, gemini
-    api_base_url = db.Column(db.String(500), nullable=True)  # API基础URL
-    api_key = db.Column(db.String(500), nullable=True)  # API密钥
-    image_resolution = db.Column(db.String(20), nullable=False, default='2K')  # 图像清晰度: 1K, 2K, 4K
-    image_aspect_ratio = db.Column(db.String(10), nullable=False, default='16:9')  # 图像比例: 16:9, 4:3, 1:1
-    max_description_workers = db.Column(db.Integer, nullable=False, default=5)  # 描述生成最大工作线程数
-    max_image_workers = db.Column(db.Integer, nullable=False, default=8)  # 图像生成最大工作线程数
+    api_base_url = db.Column(db.String(500), nullable=True)  # API基礎URL
+    api_key = db.Column(db.String(500), nullable=True)  # API金鑰
+    image_resolution = db.Column(db.String(20), nullable=False, default='2K')  # 影象清晰度: 1K, 2K, 4K
+    image_aspect_ratio = db.Column(db.String(10), nullable=False, default='16:9')  # 影象比例: 16:9, 4:3, 1:1
+    max_description_workers = db.Column(db.Integer, nullable=False, default=5)  # 描述生成最大工作執行緒數
+    max_image_workers = db.Column(db.Integer, nullable=False, default=8)  # 影象生成最大工作執行緒數
 
-    # 新增：大模型与 MinerU 相关可视化配置（可在设置页中编辑）
-    text_model = db.Column(db.String(100), nullable=True)  # 文本大模型名称（覆盖 Config.TEXT_MODEL）
-    image_model = db.Column(db.String(100), nullable=True)  # 图片大模型名称（覆盖 Config.IMAGE_MODEL）
-    mineru_api_base = db.Column(db.String(255), nullable=True)  # MinerU 服务地址（覆盖 Config.MINERU_API_BASE）
-    mineru_token = db.Column(db.String(500), nullable=True)  # MinerU API Token（覆盖 Config.MINERU_TOKEN）
-    image_caption_model = db.Column(db.String(100), nullable=True)  # 图片识别模型（覆盖 Config.IMAGE_CAPTION_MODEL）
-    output_language = db.Column(db.String(10), nullable=False, default='zh')  # 输出语言偏好（zh, en, ja, auto）
+    # 新增：大模型與 MinerU 相關視覺化配置（可在設定頁中編輯）
+    text_model = db.Column(db.String(100), nullable=True)  # 文字大模型名稱（覆蓋 Config.TEXT_MODEL）
+    image_model = db.Column(db.String(100), nullable=True)  # 圖片大模型名稱（覆蓋 Config.IMAGE_MODEL）
+    mineru_api_base = db.Column(db.String(255), nullable=True)  # MinerU 服務地址（覆蓋 Config.MINERU_API_BASE）
+    mineru_token = db.Column(db.String(500), nullable=True)  # MinerU API Token（覆蓋 Config.MINERU_TOKEN）
+    image_caption_model = db.Column(db.String(100), nullable=True)  # 圖片識別模型（覆蓋 Config.IMAGE_CAPTION_MODEL）
+    output_language = db.Column(db.String(10), nullable=False, default='zh')  # 輸出語言偏好（zh, en, ja, auto）
     
-    # 推理模式配置（分别控制文本和图像生成）
-    enable_text_reasoning = db.Column(db.Boolean, nullable=False, default=False)  # 文本生成是否开启推理
-    text_thinking_budget = db.Column(db.Integer, nullable=False, default=1024)  # 文本推理思考负载 (1-8192)
-    enable_image_reasoning = db.Column(db.Boolean, nullable=False, default=False)  # 图像生成是否开启推理
-    image_thinking_budget = db.Column(db.Integer, nullable=False, default=1024)  # 图像推理思考负载 (1-8192)
+    # 推理模式配置（分別控制文字和影象生成）
+    enable_text_reasoning = db.Column(db.Boolean, nullable=False, default=False)  # 文字生成是否開啟推理
+    text_thinking_budget = db.Column(db.Integer, nullable=False, default=1024)  # 文字推理思考負載 (1-8192)
+    enable_image_reasoning = db.Column(db.Boolean, nullable=False, default=False)  # 影象生成是否開啟推理
+    image_thinking_budget = db.Column(db.Integer, nullable=False, default=1024)  # 影象推理思考負載 (1-8192)
     
     # 百度 OCR 配置
     baidu_ocr_api_key = db.Column(db.String(500), nullable=True)  # 百度 OCR API Key
@@ -69,20 +69,20 @@ class Settings(db.Model):
         """
         Get or create the single settings instance.
 
-        - 首次创建时，用 Config（也就是 .env）里的值初始化，作为“系统默认值”
-        - 之后所有读写都只走数据库，env 只影响初始化/重置逻辑
+        - 首次建立時，用 Config（也就是 .env）裡的值初始化，作為“系統預設值”
+        - 之後所有讀寫都只走資料庫，env 隻影響初始化/重置邏輯
         """
         settings = Settings.query.first()
         if not settings:
-            # 延迟导入，避免循环依赖
+            # 延遲匯入，避免迴圈依賴
             from config import Config
 
-            # 根据 AI_PROVIDER_FORMAT 选择默认 Provider 的 env 配置
+            # 根據 AI_PROVIDER_FORMAT 選擇預設 Provider 的 env 配置
             if (Config.AI_PROVIDER_FORMAT or '').lower() == 'openai':
                 default_api_base = Config.OPENAI_API_BASE or None
                 default_api_key = Config.OPENAI_API_KEY or None
             else:
-                # 默认为 gemini（Google）
+                # 預設為 gemini（Google）
                 default_api_base = Config.GOOGLE_API_BASE or None
                 default_api_key = Config.GOOGLE_API_KEY or None
 
@@ -99,7 +99,7 @@ class Settings(db.Model):
                 mineru_api_base=Config.MINERU_API_BASE,
                 mineru_token=Config.MINERU_TOKEN,
                 image_caption_model=Config.IMAGE_CAPTION_MODEL,
-                output_language='zh',  # 默认中文
+                output_language='zh',  # 預設中文
                 baidu_ocr_api_key=Config.BAIDU_OCR_API_KEY or None,
             )
             settings.id = 1

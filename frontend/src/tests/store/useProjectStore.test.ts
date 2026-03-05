@@ -1,14 +1,14 @@
 /**
- * Zustand Store 测试
+ * Zustand Store 測試
  * 
- * 测试useProjectStore的核心状态管理功能
+ * 測試useProjectStore的核心狀態管理功能
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useProjectStore } from '@/store/useProjectStore'
 
-// Mock API模块
+// Mock API模組
 vi.mock('@/api/endpoints', () => ({
   createProject: vi.fn(),
   getProject: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/api/endpoints', () => ({
 
 describe('useProjectStore', () => {
   beforeEach(() => {
-    // 重置store状态
+    // 重置store狀態
     const { result } = renderHook(() => useProjectStore())
     act(() => {
       result.current.setCurrentProject(null)
@@ -34,7 +34,7 @@ describe('useProjectStore', () => {
     })
   })
 
-  describe('初始状态', () => {
+  describe('初始狀態', () => {
     it('should initialize with default state', () => {
       const { result } = renderHook(() => useProjectStore())
       
@@ -45,7 +45,7 @@ describe('useProjectStore', () => {
     })
   })
 
-  describe('基础Setters', () => {
+  describe('基礎Setters', () => {
     it('should set current project correctly', () => {
       const { result } = renderHook(() => useProjectStore())
       const mockProject = { 
@@ -95,11 +95,11 @@ describe('useProjectStore', () => {
     })
   })
 
-  describe('本地页面更新', () => {
+  describe('本地頁面更新', () => {
     it('should update page locally (optimistic update)', () => {
       const { result } = renderHook(() => useProjectStore())
       
-      // 先设置项目
+      // 先設定專案
       const mockProject = {
         id: 'proj-123',
         status: 'DRAFT',
@@ -113,24 +113,24 @@ describe('useProjectStore', () => {
         result.current.setCurrentProject(mockProject as any)
       })
       
-      // 更新页面
+      // 更新頁面
       act(() => {
         result.current.updatePageLocal('page-1', { 
           outline_content: { title: 'Updated Page 1', points: ['new point'] }
         })
       })
       
-      // 验证乐观更新
+      // 驗證樂觀更新
       const updatedPage = result.current.currentProject?.pages.find(p => p.id === 'page-1')
       expect(updatedPage?.outline_content?.title).toBe('Updated Page 1')
     })
   })
 
-  describe('清除状态', () => {
+  describe('清除狀態', () => {
     it('should clear project by setting null', () => {
       const { result } = renderHook(() => useProjectStore())
       
-      // 先设置项目
+      // 先設定專案
       act(() => {
         result.current.setCurrentProject({ id: '123', pages: [] } as any)
       })

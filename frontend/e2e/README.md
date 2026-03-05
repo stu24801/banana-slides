@@ -1,162 +1,162 @@
-# E2E 测试说明
+# E2E 測試說明
 
-## 📋 测试策略
+## 📋 測試策略
 
-本项目采用**单一真正的 E2E 测试**策略，避免"伪 E2E"测试造成混淆。
+本專案採用**單一真正的 E2E 測試**策略，避免"偽 E2E"測試造成混淆。
 
-### 测试金字塔
+### 測試金字塔
 
 ```
         ┌──────────────────┐
-        │   E2E 测试        │  ← 少量，测试完整流程，需要真实 API
+        │   E2E 測試        │  ← 少量，測試完整流程，需要真實 API
         │  (api-full-flow)  │
         └──────────────────┘
               ▲
               │
       ┌───────────────────┐
-      │   集成测试         │  ← 中等，测试 API 端点，使用 mock
+      │   整合測試         │  ← 中等，測試 API 端點，使用 mock
       │  (backend/tests/)  │
       └───────────────────┘
             ▲
             │
     ┌─────────────────────┐
-    │   单元测试           │  ← 大量，快速，独立
-    │ (前端 + 后端)        │
+    │   單元測試           │  ← 大量，快速，獨立
+    │ (前端 + 後端)        │
     └─────────────────────┘
 ```
 
 ---
 
-## 🎯 E2E 测试文件
+## 🎯 E2E 測試檔案
 
-### 1. **api-full-flow.spec.ts** ⭐ 主要 E2E 测试
+### 1. **api-full-flow.spec.ts** ⭐ 主要 E2E 測試
 
-**特点**：
-- ✅ 真正的端到端测试（完整流程）
-- ✅ 使用真实的 AI API（Google Gemini）
-- ✅ 测试从创建到导出的完整链路
-- ✅ 在 CI 中自动运行（如果配置了 API key）
+**特點**：
+- ✅ 真正的端到端測試（完整流程）
+- ✅ 使用真實的 AI API（Google Gemini）
+- ✅ 測試從建立到匯出的完整鏈路
+- ✅ 在 CI 中自動執行（如果配置了 API key）
 
-**测试流程**：
+**測試流程**：
 ```
-1. 创建项目（从想法/大纲/描述）
+1. 建立專案（從想法/大綱/描述）
    ↓
-2. 等待 AI 生成大纲
+2. 等待 AI 生成大綱
    ↓
-3. 生成页面描述
+3. 生成頁面描述
    ↓
-4. 生成页面图片
+4. 生成頁面圖片
    ↓
-5. 导出 PPT 文件
+5. 匯出 PPT 檔案
 ```
 
-**运行条件**：
-- ⚠️ 需要真实的 `GOOGLE_API_KEY`
-- ⚠️ 需要约 10-15 分钟
-- ⚠️ 会消耗 API 配额（约 $0.01-0.05/次）
+**執行條件**：
+- ⚠️ 需要真實的 `GOOGLE_API_KEY`
+- ⚠️ 需要約 10-15 分鐘
+- ⚠️ 會消耗 API 配額（約 $0.01-0.05/次）
 
-**本地运行**：
+**本地執行**：
 ```bash
-# 1. 确保 .env 中配置了真实的 GOOGLE_API_KEY
-# 2. 启动服务
+# 1. 確保 .env 中配置了真實的 GOOGLE_API_KEY
+# 2. 啟動服務
 docker compose up -d
 
-# 3. 等待服务就绪（使用智能等待脚本）
+# 3. 等待服務就緒（使用智慧等待指令碼）
 ./scripts/wait-for-health.sh http://localhost:5000/health 60 2
 ./scripts/wait-for-health.sh http://localhost:3000 60 2
 
-# 4. 运行测试
+# 4. 執行測試
 npx playwright test api-full-flow.spec.ts --workers=1
 ```
 
-**CI 运行**：
-- 自动运行：在 `docker-test` job 中
-- 条件：`GOOGLE_API_KEY` 已在 GitHub Secrets 中配置
-- 跳过：如果没有配置 API key，会跳过并显示说明
+**CI 執行**：
+- 自動執行：在 `docker-test` job 中
+- 條件：`GOOGLE_API_KEY` 已在 GitHub Secrets 中配置
+- 跳過：如果沒有配置 API key，會跳過並顯示說明
 
 ---
 
-### 2. **ui-full-flow.spec.ts** 🎨 UI 驱动的完整测试
+### 2. **ui-full-flow.spec.ts** 🎨 UI 驅動的完整測試
 
-**特点**：
-- ✅ 从浏览器 UI 开始操作（模拟真实用户）
-- ✅ 测试完整的用户交互流程
-- ✅ 需要真实的 AI API（Google Gemini）
-- ⚠️ 运行时间更长（15-20 分钟）
-- ✅ 在 CI 中自动运行（如果有 API key）
+**特點**：
+- ✅ 從瀏覽器 UI 開始操作（模擬真實使用者）
+- ✅ 測試完整的使用者互動流程
+- ✅ 需要真實的 AI API（Google Gemini）
+- ⚠️ 執行時間更長（15-20 分鐘）
+- ✅ 在 CI 中自動執行（如果有 API key）
 
 **用途**：
-- 发布前的最终验证
-- 验证真实用户体验
-- CI/CD 完整流程测试
+- 釋出前的最終驗證
+- 驗證真實使用者體驗
+- CI/CD 完整流程測試
 
-**本地运行**：
+**本地執行**：
 ```bash
-# 1. 确保 .env 中配置了真实的 GOOGLE_API_KEY
-# 2. 启动服务
+# 1. 確保 .env 中配置了真實的 GOOGLE_API_KEY
+# 2. 啟動服務
 docker compose up -d
 
-# 3. 等待服务就绪
+# 3. 等待服務就緒
 ./scripts/wait-for-health.sh http://localhost:5000/health 60 2
 ./scripts/wait-for-health.sh http://localhost:3000 60 2
 
-# 4. 运行测试
+# 4. 執行測試
 npx playwright test ui-full-flow.spec.ts --workers=1
 ```
 
-**CI 运行**：
-- 自动运行：在 `docker-test` job 中
-- 条件：`GOOGLE_API_KEY` 已在 GitHub Secrets 中配置
-- 跳过：如果没有配置 API key 或是 Fork PR，会跳过并显示说明
+**CI 執行**：
+- 自動執行：在 `docker-test` job 中
+- 條件：`GOOGLE_API_KEY` 已在 GitHub Secrets 中配置
+- 跳過：如果沒有配置 API key 或是 Fork PR，會跳過並顯示說明
 
 ---
 
-## 🚫 已删除的测试
+## 🚫 已刪除的測試
 
-以下测试文件已被删除（避免混淆）：
+以下測試檔案已被刪除（避免混淆）：
 
-- ~~`home.spec.ts`~~ - 基础 UI 测试（不是真正的 E2E）
-- ~~`create-ppt.spec.ts`~~ - API 集成测试（不是真正的 E2E）
+- ~~`home.spec.ts`~~ - 基礎 UI 測試（不是真正的 E2E）
+- ~~`create-ppt.spec.ts`~~ - API 整合測試（不是真正的 E2E）
 
 **原因**：
-- 它们不调用真实 AI API，不是真正的端到端测试
-- 测试的内容已被其他测试覆盖：
-  - UI 交互 → 前端单元测试
-  - API 端点 → 后端集成测试
+- 它們不呼叫真實 AI API，不是真正的端到端測試
+- 測試的內容已被其他測試覆蓋：
+  - UI 互動 → 前端單元測試
+  - API 端點 → 後端整合測試
   - 完整流程 → `api-full-flow.spec.ts`
 
 ---
 
 ## 🔧 CI 配置
 
-### 在 GitHub Actions 中的运行逻辑
+### 在 GitHub Actions 中的執行邏輯
 
 ```yaml
 # .github/workflows/ci-test.yml
 
 docker-test job:
-  ├─ 构建 Docker 镜像
-  ├─ 启动服务
-  ├─ 健康检查
-  ├─ Docker 环境测试
-  └─ E2E 测试 (api-full-flow.spec.ts)
-      ├─ 如果有 GOOGLE_API_KEY → 运行完整 E2E
-      └─ 如果没有 API key → 跳过，显示说明
+  ├─ 構建 Docker 映象
+  ├─ 啟動服務
+  ├─ 健康檢查
+  ├─ Docker 環境測試
+  └─ E2E 測試 (api-full-flow.spec.ts)
+      ├─ 如果有 GOOGLE_API_KEY → 執行完整 E2E
+      └─ 如果沒有 API key → 跳過，顯示說明
 ```
 
 ### 配置 GitHub Secrets
 
-要在 CI 中运行 E2E 测试，需要配置：
+要在 CI 中執行 E2E 測試，需要配置：
 
-1. 进入仓库 → **Settings** → **Secrets and variables** → **Actions**
-2. 添加 Secret：
+1. 進入倉庫 → **Settings** → **Secrets and variables** → **Actions**
+2. 新增 Secret：
    - Name: `GOOGLE_API_KEY`
-   - Value: 你的 Google Gemini API 密钥
-   - 获取地址：https://aistudio.google.com/app/apikey
+   - Value: 你的 Google Gemini API 金鑰
+   - 獲取地址：https://aistudio.google.com/app/apikey
 
-### 如果没有配置 API key
+### 如果沒有配置 API key
 
-CI 会跳过 E2E 测试，并显示：
+CI 會跳過 E2E 測試，並顯示：
 
 ```
 ⚠️  Skipping E2E tests
@@ -172,94 +172,94 @@ Note: Other tests already passed:
 E2E tests require a real Google API key to test the complete AI generation workflow.
 ```
 
-**这是正常的！** 其他测试已经覆盖了大部分功能。
+**這是正常的！** 其他測試已經覆蓋了大部分功能。
 
 ---
 
-## 📊 测试覆盖范围
+## 📊 測試覆蓋範圍
 
-| 测试层级 | 测试内容 | 需要真实 API | 运行时间 | CI 运行 |
+| 測試層級 | 測試內容 | 需要真實 API | 執行時間 | CI 執行 |
 |---------|---------|-------------|---------|---------|
-| **前端单元测试** | React 组件、hooks、工具函数 | ❌ | < 1 分钟 | ✅ 总是 |
-| **后端单元测试** | Services、Utils、Models | ❌ | < 2 分钟 | ✅ 总是 |
-| **后端集成测试** | API 端点（mock AI） | ❌ | < 3 分钟 | ✅ 总是 |
-| **Docker 环境测试** | 容器启动、健康检查 | ❌ | < 5 分钟 | ✅ 总是 |
-| **E2E 测试** | 完整 AI 生成流程 | ✅ | 10-15 分钟 | ⚠️ 有 API key 时 |
+| **前端單元測試** | React 元件、hooks、工具函式 | ❌ | < 1 分鐘 | ✅ 總是 |
+| **後端單元測試** | Services、Utils、Models | ❌ | < 2 分鐘 | ✅ 總是 |
+| **後端整合測試** | API 端點（mock AI） | ❌ | < 3 分鐘 | ✅ 總是 |
+| **Docker 環境測試** | 容器啟動、健康檢查 | ❌ | < 5 分鐘 | ✅ 總是 |
+| **E2E 測試** | 完整 AI 生成流程 | ✅ | 10-15 分鐘 | ⚠️ 有 API key 時 |
 
 ---
 
-## 🎯 最佳实践
+## 🎯 最佳實踐
 
-### 开发时
+### 開發時
 
-1. **日常开发**：运行单元测试和集成测试
+1. **日常開發**：執行單元測試和整合測試
    ```bash
-   # 后端
+   # 後端
    cd backend && uv run pytest tests/
    
    # 前端
    cd frontend && npm test
    ```
 
-2. **提交 PR 前**：确保 CI 的所有测试通过
-   - Light Check（自动运行）
-   - Full Test（添加 `ready-for-test` 标签触发）
+2. **提交 PR 前**：確保 CI 的所有測試透過
+   - Light Check（自動執行）
+   - Full Test（新增 `ready-for-test` 標籤觸發）
 
-3. **大功能完成后**：本地运行一次 E2E 测试
+3. **大功能完成後**：本地執行一次 E2E 測試
    ```bash
-   # 确保 .env 配置了真实 API key
+   # 確保 .env 配置了真實 API key
    npx playwright test api-full-flow.spec.ts
    ```
 
-### 发布前
+### 釋出前
 
-1. **最终验证**：运行完整的 UI E2E 测试
+1. **最終驗證**：執行完整的 UI E2E 測試
    ```bash
    npx playwright test ui-full-flow.spec.ts
    ```
 
-2. **检查 CI**：确保所有测试（包括 E2E）都通过
+2. **檢查 CI**：確保所有測試（包括 E2E）都透過
 
 ---
 
-## 🐛 调试失败的测试
+## 🐛 除錯失敗的測試
 
-### 查看测试报告
+### 檢視測試報告
 
 ```bash
-# 运行测试后，打开 HTML 报告
+# 執行測試後，開啟 HTML 報告
 npx playwright show-report
 ```
 
-### 查看失败截图和视频
+### 檢視失敗截圖和影片
 
-测试失败时，Playwright 会自动保存：
-- 截图：`test-results/**/test-failed-*.png`
-- 视频：`test-results/**/video.webm`
-- 追踪：`test-results/**/trace.zip`
+測試失敗時，Playwright 會自動儲存：
+- 截圖：`test-results/**/test-failed-*.png`
+- 影片：`test-results/**/video.webm`
+- 追蹤：`test-results/**/trace.zip`
 
-### 查看追踪
+### 檢視追蹤
 
 ```bash
 npx playwright show-trace test-results/**/trace.zip
 ```
 
-### UI 模式调试
+### UI 模式除錯
 
 ```bash
-# 在 UI 模式下运行测试（可以看到浏览器操作过程）
+# 在 UI 模式下執行測試（可以看到瀏覽器操作過程）
 npx playwright test --ui
 ```
 
 ---
 
-## 📚 相关文档
+## 📚 相關文件
 
-- [Playwright 文档](https://playwright.dev)
-- [CI 配置说明](../.github/CI_SETUP.md)
-- [项目 README](../README.md)
+- [Playwright 文件](https://playwright.dev)
+- [CI 配置說明](../.github/CI_SETUP.md)
+- [專案 README](../README.md)
 
 ---
 
-**最后更新**: 2025-12-22  
-**测试策略**: 单一真正的 E2E 测试
+**最後更新**: 2025-12-22  
+**測試策略**: 單一真正的 E2E 測試

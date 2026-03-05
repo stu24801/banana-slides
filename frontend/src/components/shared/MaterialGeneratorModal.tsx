@@ -12,17 +12,17 @@ import type { Material } from '@/api/endpoints';
 import type { Task } from '@/types';
 
 interface MaterialGeneratorModalProps {
-  projectId?: string | null; // 可选，如果不提供则生成全局素材
+  projectId?: string | null; // 可選，如果不提供則生成全域性素材
   isOpen: boolean;
   onClose: () => void;
 }
 
 /**
- * 素材生成模态卡片
- * - 输入提示词 + 上传参考图
- * - 提示词原样传给文生图模型（不做额外修饰）
- * - 生成结果展示在模态顶部
- * - 结果统一保存在项目下的历史素材库（backend /uploads/{projectId}/materials）
+ * 素材生成模態卡片
+ * - 輸入提示詞 + 上傳參考圖
+ * - 提示詞原樣傳給文生圖模型（不做額外修飾）
+ * - 生成結果展示在模態頂部
+ * - 結果統一儲存在專案下的歷史素材庫（backend /uploads/{projectId}/materials）
  */
 export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
   projectId,
@@ -49,7 +49,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // 如果还没有主参考图，优先把第一张作为主参考图，其余作为额外参考图
+    // 如果還沒有主參考圖，優先把第一張作為主參考圖，其餘作為額外參考圖
     if (!refImage) {
       const [first, ...rest] = files;
       setRefImage(first);
@@ -67,14 +67,14 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
 
   const handleSelectMaterials = async (materials: Material[]) => {
     try {
-      // 将选中的素材转换为File对象
+      // 將選中的素材轉換為File物件
       const files = await Promise.all(
         materials.map((material) => materialUrlToFile(material))
       );
 
       if (files.length === 0) return;
 
-      // 如果没有主图，优先把第一张设为主参考图
+      // 如果沒有主圖，優先把第一張設為主參考圖
       if (!refImage) {
         const [first, ...rest] = files;
         setRefImage(first);
@@ -85,11 +85,11 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
         setExtraImages((prev) => [...prev, ...files]);
       }
 
-      show({ message: `已添加 ${files.length} 个素材`, type: 'success' });
+      show({ message: `已新增 ${files.length} 個素材`, type: 'success' });
     } catch (error: any) {
-      console.error('加载素材失败:', error);
+      console.error('載入素材失敗:', error);
       show({
-        message: '加载素材失败: ' + (error.message || '未知错误'),
+        message: '載入素材失敗: ' + (error.message || '未知錯誤'),
         type: 'error',
       });
     }
@@ -97,7 +97,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 清理轮询
+  // 清理輪詢
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -107,8 +107,8 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
   }, []);
 
   const pollMaterialTask = async (taskId: string) => {
-    const targetProjectId = projectId || 'global'; // 使用'global'作为Task的project_id
-    const maxAttempts = 60; // 最多轮询60次（约2分钟）
+    const targetProjectId = projectId || 'global'; // 使用'global'作為Task的project_id
+    const maxAttempts = 60; // 最多輪詢60次（約2分鐘）
     let attempts = 0;
 
     const poll = async () => {
@@ -118,19 +118,19 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
         const task: Task = response.data;
 
         if (task.status === 'COMPLETED') {
-          // 任务完成，从progress中获取结果
+          // 任務完成，從progress中獲取結果
           const progress = task.progress || {};
           const imageUrl = progress.image_url;
           
           if (imageUrl) {
             setPreviewUrl(getImageUrl(imageUrl));
             const message = projectId
-              ? '素材生成成功，已保存到历史素材库'
-              : '素材生成成功，已保存到全局素材库';
+              ? '素材生成成功，已儲存到歷史素材庫'
+              : '素材生成成功，已儲存到全域性素材庫';
             show({ message, type: 'success' });
             setIsCompleted(true);
           } else {
-            show({ message: '素材生成完成，但未找到图片地址', type: 'error' });
+            show({ message: '素材生成完成，但未找到圖片地址', type: 'error' });
           }
 
           setIsGenerating(false);
@@ -140,7 +140,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
           }
         } else if (task.status === 'FAILED') {
           show({
-            message: task.error_message || '素材生成失败',
+            message: task.error_message || '素材生成失敗',
             type: 'error',
           });
           setIsGenerating(false);
@@ -149,9 +149,9 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
             pollingIntervalRef.current = null;
           }
         } else if (task.status === 'PENDING' || task.status === 'PROCESSING') {
-          // 继续轮询
+          // 繼續輪詢
           if (attempts >= maxAttempts) {
-            show({ message: '素材生成超时，请稍后查看素材库', type: 'warning' });
+            show({ message: '素材生成超時，請稍後檢視素材庫', type: 'warning' });
             setIsGenerating(false);
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
@@ -160,9 +160,9 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
           }
         }
       } catch (error: any) {
-        console.error('轮询任务状态失败:', error);
+        console.error('輪詢任務狀態失敗:', error);
         if (attempts >= maxAttempts) {
-          show({ message: '轮询任务状态失败，请稍后查看素材库', type: 'error' });
+          show({ message: '輪詢任務狀態失敗，請稍後檢視素材庫', type: 'error' });
           setIsGenerating(false);
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -172,34 +172,34 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
       }
     };
 
-    // 立即执行一次，然后每2秒轮询一次
+    // 立即執行一次，然後每2秒輪詢一次
     poll();
     pollingIntervalRef.current = setInterval(poll, 2000);
   };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      show({ message: '请输入提示词', type: 'error' });
+      show({ message: '請輸入提示詞', type: 'error' });
       return;
     }
 
     setIsGenerating(true);
     try {
-      // 如果没有projectId，使用'none'表示生成全局素材（后端会转换为'global'用于Task）
+      // 如果沒有projectId，使用'none'表示生成全域性素材（後端會轉換為'global'用於Task）
       const targetProjectId = projectId || 'none';
       const resp = await generateMaterialImage(targetProjectId, prompt.trim(), refImage as File, extraImages);
       const taskId = resp.data?.task_id;
       
       if (taskId) {
-        // 开始轮询任务状态
+        // 開始輪詢任務狀態
         await pollMaterialTask(taskId);
       } else {
-        show({ message: '素材生成失败：未返回任务ID', type: 'error' });
+        show({ message: '素材生成失敗：未返回任務ID', type: 'error' });
         setIsGenerating(false);
       }
     } catch (error: any) {
       show({
-        message: error?.response?.data?.error?.message || error.message || '素材生成失败',
+        message: error?.response?.data?.error?.message || error.message || '素材生成失敗',
         type: 'error',
       });
       setIsGenerating(false);
@@ -212,11 +212,11 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="素材生成" size="lg">
-      <blockquote className="text-sm text-gray-500 mb-4">生成的素材会保存到素材库</blockquote>
+      <blockquote className="text-sm text-gray-500 mb-4">生成的素材會儲存到素材庫</blockquote>
       <div className="space-y-4">
-        {/* 顶部：生成结果预览（始终显示最新一次生成） */}
+        {/* 頂部：生成結果預覽（始終顯示最新一次生成） */}
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">生成结果</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">生成結果</h4>
           {isGenerating ? (
             <div className="aspect-video rounded-lg overflow-hidden border border-gray-200">
               <Skeleton className="w-full h-full" />
@@ -232,15 +232,15 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
           ) : (
             <div className="aspect-video bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-400 text-sm">
               <div className="text-3xl mb-2">🎨</div>
-              <div>生成的素材会展示在这里</div>
+              <div>生成的素材會展示在這裡</div>
             </div>
           )}
         </div>
 
-        {/* 提示词：原样传给模型 */}
+        {/* 提示詞：原樣傳給模型 */}
         <Textarea
-          label="提示词（原样发送给文生图模型）"
-          placeholder="例如：蓝紫色渐变背景，带几何图形和科技感线条，用于科技主题标题页..."
+          label="提示詞（原樣傳送給文生圖模型）"
+          placeholder="例如：藍紫色漸變背景，帶幾何圖形和科技感線條，用於科技主題標題頁..."
           value={prompt}
           onChange={(e) => {
             setPrompt(e.target.value);
@@ -249,12 +249,12 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
           rows={3}
         />
 
-        {/* 参考图上传区 */}
+        {/* 參考圖上傳區 */}
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <ImagePlus size={16} className="text-gray-500" />
-              <span className="font-medium">参考图片（可选）</span>
+              <span className="font-medium">參考圖片（可選）</span>
             </div>
             <Button
               variant="ghost"
@@ -262,19 +262,19 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
               icon={<FolderOpen size={16} />}
               onClick={() => setIsMaterialSelectorOpen(true)}
             >
-              从素材库选择
+              從素材庫選擇
             </Button>
           </div>
           <div className="flex flex-wrap gap-4">
-            {/* 主参考图（可选） */}
+            {/* 主參考圖（可選） */}
             <div className="space-y-2">
-              <div className="text-xs text-gray-600">主参考图（可选）</div>
+              <div className="text-xs text-gray-600">主參考圖（可選）</div>
               <label className="w-40 h-28 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer hover:border-banana-500 transition-colors bg-white relative group">
                 {refImage ? (
                   <>
                     <img
                       src={URL.createObjectURL(refImage)}
-                      alt="主参考图"
+                      alt="主參考圖"
                       className="w-full h-full object-cover"
                     />
                     <button
@@ -292,7 +292,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
                 ) : (
                   <>
                     <ImageIcon size={24} className="text-gray-400 mb-1" />
-                    <span className="text-xs text-gray-500">点击上传</span>
+                    <span className="text-xs text-gray-500">點選上傳</span>
                   </>
                 )}
                 <input
@@ -304,9 +304,9 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
               </label>
             </div>
 
-            {/* 额外参考图（可选） */}
+            {/* 額外參考圖（可選） */}
             <div className="flex-1 space-y-2 min-w-[180px]">
-              <div className="text-xs text-gray-600">额外参考图（可选，多张）</div>
+              <div className="text-xs text-gray-600">額外參考圖（可選，多張）</div>
               <div className="flex flex-wrap gap-2">
                 {extraImages.map((file, idx) => (
                   <div key={idx} className="relative group">
@@ -325,7 +325,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
                 ))}
                 <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer hover:border-banana-500 transition-colors bg-white">
                   <Upload size={18} className="text-gray-400 mb-1" />
-                  <span className="text-[11px] text-gray-500">添加</span>
+                  <span className="text-[11px] text-gray-500">新增</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -341,7 +341,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
 
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={handleClose} disabled={isGenerating}>
-            关闭
+            關閉
           </Button>
           <Button
             variant="primary"
@@ -352,7 +352,7 @@ export const MaterialGeneratorModal: React.FC<MaterialGeneratorModalProps> = ({
           </Button>
         </div>
       </div>
-      {/* 素材选择器 */}
+      {/* 素材選擇器 */}
       <MaterialSelector
         projectId={projectId}
         isOpen={isMaterialSelectorOpen}

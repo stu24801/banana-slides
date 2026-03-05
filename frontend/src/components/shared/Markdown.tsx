@@ -16,7 +16,7 @@ export const Markdown: React.FC<MarkdownProps> = ({ children, className = '' }) 
         remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeRaw]}
         components={{
-        // 自定义渲染规则
+        // 自定義渲染規則
         p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
         ul: ({ children }) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,

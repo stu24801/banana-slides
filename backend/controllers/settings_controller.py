@@ -27,15 +27,15 @@ settings_bp = Blueprint(
 @contextmanager
 def temporary_settings_override(settings_override: dict):
     """
-    临时应用设置覆盖的上下文管理器
+    臨時應用設定覆蓋的上下文管理器
 
     使用示例:
         with temporary_settings_override({"api_key": "test-key"}):
-            # 在这里使用临时设置
+            # 在這裡使用臨時設定
             result = some_test_function()
 
     Args:
-        settings_override: 要临时应用的设置字典
+        settings_override: 要臨時應用的設定字典
 
     Yields:
         None
@@ -43,7 +43,7 @@ def temporary_settings_override(settings_override: dict):
     original_values = {}
 
     try:
-        # 应用覆盖设置
+        # 應用覆蓋設定
         if settings_override.get("api_key"):
             original_values["GOOGLE_API_KEY"] = current_app.config.get("GOOGLE_API_KEY")
             original_values["OPENAI_API_KEY"] = current_app.config.get("OPENAI_API_KEY")
@@ -107,7 +107,7 @@ def temporary_settings_override(settings_override: dict):
         yield
 
     finally:
-        # 恢复原始配置
+        # 恢復原始配置
         for key, value in original_values.items():
             if value is not None:
                 current_app.config[key] = value
@@ -296,7 +296,7 @@ def reset_settings():
         settings.mineru_api_base = Config.MINERU_API_BASE
         settings.mineru_token = Config.MINERU_TOKEN
         settings.image_caption_model = Config.IMAGE_CAPTION_MODEL
-        settings.output_language = 'zh'  # 重置为默认中文
+        settings.output_language = 'zh'  # 重置為預設中文
         # 重置推理模式配置
         settings.enable_text_reasoning = False
         settings.text_thinking_budget = 1024
@@ -332,27 +332,27 @@ def reset_settings():
 @settings_bp.route("/verify", methods=["POST"], strict_slashes=False)
 def verify_api_key():
     """
-    POST /api/settings/verify - 验证API key是否可用
-    通过调用一个轻量的gemini-3-flash-preview测试请求（思考budget=0）来判断
+    POST /api/settings/verify - 驗證API key是否可用
+    透過呼叫一個輕量的gemini-3-flash-preview測試請求（思考budget=0）來判斷
 
     Returns:
         {
             "data": {
                 "available": true/false,
-                "message": "提示信息"
+                "message": "提示資訊"
             }
         }
     """
     try:
-        # 获取当前设置
+        # 獲取當前設定
         settings = Settings.get_settings()
         if not settings:
             return success_response({
                 "available": False,
-                "message": "用户设置未找到"
+                "message": "使用者設定未找到"
             })
 
-        # 准备设置覆盖字典
+        # 準備設定覆蓋字典
         settings_override = {}
         if settings.api_key:
             settings_override["api_key"] = settings.api_key
@@ -361,17 +361,17 @@ def verify_api_key():
         if settings.ai_provider_format:
             settings_override["ai_provider_format"] = settings.ai_provider_format
 
-        # 使用上下文管理器临时应用用户配置进行验证
+        # 使用上下文管理器臨時應用使用者配置進行驗證
         with temporary_settings_override(settings_override):
             from services.ai_providers import get_text_provider
 
-            # 使用 gemini-3-flash-preview 模型进行验证（思考budget=0，最小开销）
+            # 使用 gemini-3-flash-preview 模型進行驗證（思考budget=0，最小開銷）
             verification_model = "gemini-3-flash-preview"
 
-            # 尝试创建provider并调用一个简单的测试请求
+            # 嘗試建立provider並呼叫一個簡單的測試請求
             try:
                 provider = get_text_provider(model=verification_model)
-                # 调用一个简单的测试请求（思考budget=0，最小开销）
+                # 呼叫一個簡單的測試請求（思考budget=0，最小開銷）
                 response = provider.generate_text("Hello", thinking_budget=0)
 
                 logger.info("API key verification successful")
@@ -385,24 +385,24 @@ def verify_api_key():
                 logger.warning(f"API key not configured: {str(ve)}")
                 return success_response({
                     "available": False,
-                    "message": "API key 未配置，请在设置中配置 API key 和 API Base URL"
+                    "message": "API key 未配置，請在設定中配置 API key 和 API Base URL"
                 })
             except Exception as e:
-                # API调用失败（可能是key无效、余额不足等）
+                # API呼叫失敗（可能是key無效、餘額不足等）
                 error_msg = str(e)
                 logger.warning(f"API key verification failed: {error_msg}")
 
-                # 根据错误信息判断具体原因
+                # 根據錯誤資訊判斷具體原因
                 if "401" in error_msg or "unauthorized" in error_msg.lower() or "invalid" in error_msg.lower():
-                    message = "API key 无效或已过期，请在设置中检查 API key 配置"
+                    message = "API key 無效或已過期，請在設定中檢查 API key 配置"
                 elif "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower():
-                    message = "API 调用超限或余额不足，请在设置中检查配置"
+                    message = "API 呼叫超限或餘額不足，請在設定中檢查配置"
                 elif "403" in error_msg or "forbidden" in error_msg.lower():
-                    message = "API 访问被拒绝，请在设置中检查 API key 权限"
+                    message = "API 訪問被拒絕，請在設定中檢查 API key 許可權"
                 elif "timeout" in error_msg.lower():
-                    message = "API 调用超时，请在设置中检查网络连接和 API Base URL"
+                    message = "API 呼叫超時，請在設定中檢查網路連線和 API Base URL"
                 else:
-                    message = f"API 调用失败，请在设置中检查配置: {error_msg}"
+                    message = f"API 呼叫失敗，請在設定中檢查配置: {error_msg}"
 
                 return success_response({
                     "available": False,
@@ -413,7 +413,7 @@ def verify_api_key():
         logger.error(f"Error verifying API key: {str(e)}")
         return error_response(
             "VERIFY_API_KEY_ERROR",
-            f"验证 API key 时出错: {str(e)}",
+            f"驗證 API key 時出錯: {str(e)}",
             500,
         )
 
@@ -538,12 +538,12 @@ def _sync_settings_to_config(settings: Settings):
 def _get_test_image_path() -> Path:
     test_image = Path(PROJECT_ROOT) / "assets" / "test_img.png"
     if not test_image.exists():
-        raise FileNotFoundError("未找到 test_img.png，请确认已放在项目根目录 assets 下")
+        raise FileNotFoundError("未找到 test_img.png，請確認已放在專案根目錄 assets 下")
     return test_image
 
 
 def _get_baidu_credentials():
-    """获取百度 API 凭证"""
+    """獲取百度 API 憑證"""
     api_key = current_app.config.get("BAIDU_OCR_API_KEY") or Config.BAIDU_OCR_API_KEY
     api_secret = current_app.config.get("BAIDU_OCR_API_SECRET") or Config.BAIDU_OCR_API_SECRET
     if not api_key:
@@ -552,7 +552,7 @@ def _get_baidu_credentials():
 
 
 def _create_file_parser():
-    """创建 FileParserService 实例"""
+    """建立 FileParserService 例項"""
     return FileParserService(
         mineru_token=current_app.config.get("MINERU_TOKEN", ""),
         mineru_api_base=current_app.config.get("MINERU_API_BASE", ""),
@@ -565,13 +565,13 @@ def _create_file_parser():
     )
 
 
-# 测试函数 - 每个测试一个独立函数
+# 測試函式 - 每個測試一個獨立函式
 def _test_baidu_ocr():
-    """测试百度 OCR 服务"""
+    """測試百度 OCR 服務"""
     api_key, api_secret = _get_baidu_credentials()
     provider = create_baidu_accurate_ocr_provider(api_key, api_secret)
     if not provider:
-        raise ValueError("百度 OCR Provider 初始化失败")
+        raise ValueError("百度 OCR Provider 初始化失敗")
 
     test_image_path = _get_test_image_path()
     result = provider.recognize(str(test_image_path), language_type="CHN_ENG")
@@ -580,18 +580,18 @@ def _test_baidu_ocr():
     return {
         "recognized_text": recognized_text,
         "words_result_num": result.get("words_result_num", 0),
-    }, "百度 OCR 测试成功"
+    }, "百度 OCR 測試成功"
 
 
 def _test_text_model():
-    """测试文本生成模型"""
+    """測試文字生成模型"""
     ai_service = AIService()
-    reply = ai_service.text_provider.generate_text("请只回复 OK。", thinking_budget=64)
-    return {"reply": reply.strip()}, "文本模型测试成功"
+    reply = ai_service.text_provider.generate_text("請只回復 OK。", thinking_budget=64)
+    return {"reply": reply.strip()}, "文字模型測試成功"
 
 
 def _test_caption_model():
-    """测试图片识别模型"""
+    """測試圖片識別模型"""
     upload_folder = Path(current_app.config.get("UPLOAD_FOLDER", Config.UPLOAD_FOLDER))
     mineru_root = upload_folder / "mineru_files"
     mineru_root.mkdir(parents=True, exist_ok=True)
@@ -609,9 +609,9 @@ def _test_caption_model():
         caption = parser._generate_single_caption(image_url).strip()
 
         if not caption:
-            raise ValueError("图片识别模型返回空结果")
+            raise ValueError("圖片識別模型返回空結果")
 
-        return {"caption": caption}, "图片识别模型测试成功"
+        return {"caption": caption}, "圖片識別模型測試成功"
     finally:
         if image_path.exists():
             image_path.unlink()
@@ -623,11 +623,11 @@ def _test_caption_model():
 
 
 def _test_baidu_inpaint():
-    """测试百度图像修复"""
+    """測試百度影象修復"""
     api_key, api_secret = _get_baidu_credentials()
     provider = create_baidu_inpainting_provider(api_key, api_secret)
     if not provider:
-        raise ValueError("百度图像修复 Provider 初始化失败")
+        raise ValueError("百度影象修復 Provider 初始化失敗")
 
     test_image_path = _get_test_image_path()
     with Image.open(test_image_path) as image:
@@ -645,16 +645,16 @@ def _test_baidu_inpaint():
         result = provider.inpaint(image, rectangles)
 
     if result is None:
-        raise ValueError("百度图像修复返回空结果")
+        raise ValueError("百度影象修復返回空結果")
 
-    return {"image_size": result.size}, "百度图像修复测试成功"
+    return {"image_size": result.size}, "百度影象修復測試成功"
 
 
 def _test_image_model():
-    """测试图像生成模型"""
+    """測試影象生成模型"""
     ai_service = AIService()
     test_image_path = _get_test_image_path()
-    prompt = "生成一张简洁、明亮、适合演示文稿的背景图。"
+    prompt = "生成一張簡潔、明亮、適合簡報的背景圖。"
     result = ai_service.generate_image(
         prompt=prompt,
         ref_image_path=str(test_image_path),
@@ -663,13 +663,13 @@ def _test_image_model():
     )
 
     if result is None:
-        raise ValueError("图像生成模型返回空结果")
+        raise ValueError("影象生成模型返回空結果")
 
-    return {"image_size": result.size}, "图像生成模型测试成功"
+    return {"image_size": result.size}, "影象生成模型測試成功"
 
 
 def _test_mineru_pdf():
-    """测试 MinerU PDF 解析"""
+    """測試 MinerU PDF 解析"""
     mineru_token = current_app.config.get("MINERU_TOKEN", "")
     if not mineru_token:
         raise ValueError("未配置 MINERU_TOKEN")
@@ -699,8 +699,8 @@ def _test_mineru_pdf():
                 return {
                     "batch_id": batch_id,
                     "status": "processing",
-                    "message": "服务正常，文件正在处理中"
-                }, "MinerU 服务可用（处理中）"
+                    "message": "服務正常，檔案正在處理中"
+                }, "MinerU 服務可用（處理中）"
             else:
                 raise ValueError(poll_error)
         else:
@@ -709,13 +709,13 @@ def _test_mineru_pdf():
                 "batch_id": batch_id,
                 "extract_id": extract_id,
                 "content_preview": content_preview,
-            }, "MinerU 解析测试成功"
+            }, "MinerU 解析測試成功"
     finally:
         if tmp_file and tmp_file.exists():
             tmp_file.unlink()
 
 
-# 测试函数映射
+# 測試函式對映
 TEST_FUNCTIONS = {
     "baidu-ocr": _test_baidu_ocr,
     "text-model": _test_text_model,
@@ -728,17 +728,17 @@ TEST_FUNCTIONS = {
 
 def _run_test_async(task_id: str, test_name: str, test_settings: dict, app):
     """
-    在后台异步执行测试任务
+    在後臺非同步執行測試任務
 
     Args:
-        task_id: 任务ID
-        test_name: 测试名称
-        test_settings: 测试设置
-        app: Flask app 实例
+        task_id: 任務ID
+        test_name: 測試名稱
+        test_settings: 測試設定
+        app: Flask app 例項
     """
     with app.app_context():
         try:
-            # 更新状态为运行中
+            # 更新狀態為執行中
             task = Task.query.get(task_id)
             if not task:
                 logger.error(f"Task {task_id} not found")
@@ -747,16 +747,16 @@ def _run_test_async(task_id: str, test_name: str, test_settings: dict, app):
             task.status = 'PROCESSING'
             db.session.commit()
 
-            # 应用测试设置并执行测试
+            # 應用測試設定並執行測試
             with temporary_settings_override(test_settings):
-                # 查找并执行对应的测试函数
+                # 查詢並執行對應的測試函式
                 test_func = TEST_FUNCTIONS.get(test_name)
                 if not test_func:
-                    raise ValueError(f"未知测试类型: {test_name}")
+                    raise ValueError(f"未知測試型別: {test_name}")
 
                 result_data, message = test_func()
 
-                # 更新任务状态为完成
+                # 更新任務狀態為完成
                 task = Task.query.get(task_id)
                 if task:
                     task.status = 'COMPLETED'
@@ -783,10 +783,10 @@ def _run_test_async(task_id: str, test_name: str, test_settings: dict, app):
 @settings_bp.route("/tests/<test_name>", methods=["POST"], strict_slashes=False)
 def run_settings_test(test_name: str):
     """
-    POST /api/settings/tests/<test_name> - 启动异步服务测试
+    POST /api/settings/tests/<test_name> - 啟動非同步服務測試
 
     Request Body (optional):
-        可选的设置覆盖参数，用于测试未保存的配置
+        可選的設定覆蓋引數，用於測試未儲存的配置
         {
             "api_key": "test-key",
             "api_base_url": "https://test.api.com",
@@ -803,12 +803,12 @@ def run_settings_test(test_name: str):
         }
     """
     try:
-        # 获取请求体中的测试设置覆盖（如果有）
+        # 獲取請求體中的測試設定覆蓋（如果有）
         test_settings = request.get_json() or {}
 
-        # 创建任务记录（使用特殊的 project_id='settings-test'）
+        # 建立任務記錄（使用特殊的 project_id='settings-test'）
         task = Task(
-            project_id='settings-test',  # 特殊标记，表示这是设置测试任务
+            project_id='settings-test',  # 特殊標記，表示這是設定測試任務
             task_type=f'TEST_{test_name.upper().replace("-", "_")}',
             status='PENDING'
         )
@@ -817,7 +817,7 @@ def run_settings_test(test_name: str):
 
         task_id = task.id
 
-        # 使用 TaskManager 提交后台任务
+        # 使用 TaskManager 提交後臺任務
         task_manager.submit_task(
             task_id,
             _run_test_async,
@@ -831,13 +831,13 @@ def run_settings_test(test_name: str):
         return success_response({
             'task_id': task_id,
             'status': 'PENDING'
-        }, '测试任务已启动')
+        }, '測試任務已啟動')
 
     except Exception as e:
         logger.error(f"Failed to start test: {str(e)}", exc_info=True)
         return error_response(
             "SETTINGS_TEST_ERROR",
-            f"启动测试失败: {str(e)}",
+            f"啟動測試失敗: {str(e)}",
             500
         )
 
@@ -845,14 +845,14 @@ def run_settings_test(test_name: str):
 @settings_bp.route("/tests/<task_id>/status", methods=["GET"], strict_slashes=False)
 def get_test_status(task_id: str):
     """
-    GET /api/settings/tests/<task_id>/status - 查询测试任务状态
+    GET /api/settings/tests/<task_id>/status - 查詢測試任務狀態
 
     Returns:
         {
             "data": {
                 "status": "PENDING|PROCESSING|COMPLETED|FAILED",
-                "result": {...},  # 仅当 status=COMPLETED 时存在
-                "error": "...",   # 仅当 status=FAILED 时存在
+                "result": {...},  # 僅當 status=COMPLETED 時存在
+                "error": "...",   # 僅當 status=FAILED 時存在
                 "message": "..."
             }
         }
@@ -860,9 +860,9 @@ def get_test_status(task_id: str):
     try:
         task = Task.query.get(task_id)
         if not task:
-            return error_response("TASK_NOT_FOUND", "测试任务不存在", 404)
+            return error_response("TASK_NOT_FOUND", "測試任務不存在", 404)
 
-        # 构建响应数据
+        # 構建響應資料
         response_data = {
             'status': task.status,
             'task_type': task.task_type,
@@ -870,13 +870,13 @@ def get_test_status(task_id: str):
             'completed_at': task.completed_at.isoformat() if task.completed_at else None,
         }
 
-        # 如果任务完成，包含结果和消息
+        # 如果任務完成，包含結果和訊息
         if task.status == 'COMPLETED':
             progress = task.get_progress()
             response_data['result'] = progress.get('result', {})
-            response_data['message'] = progress.get('message', '测试完成')
+            response_data['message'] = progress.get('message', '測試完成')
 
-        # 如果任务失败，包含错误信息
+        # 如果任務失敗，包含錯誤資訊
         elif task.status == 'FAILED':
             response_data['error'] = task.error_message
 
@@ -886,6 +886,6 @@ def get_test_status(task_id: str):
         logger.error(f"Failed to get test status: {str(e)}", exc_info=True)
         return error_response(
             "GET_TEST_STATUS_ERROR",
-            f"获取测试状态失败: {str(e)}",
+            f"獲取測試狀態失敗: {str(e)}",
             500
         )

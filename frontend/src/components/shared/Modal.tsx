@@ -34,7 +34,7 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={onClose}
       />
       
-      {/* 对话框 */}
+      {/* 對話方塊 */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cn(
@@ -43,7 +43,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 标题栏 */}
+          {/* 標題欄 */}
           {title && (
             <div className="flex items-center justify-between px-8 py-6 bg-banana-50 rounded-t-panel">
               <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
@@ -56,7 +56,7 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
           )}
           
-          {/* 内容 */}
+          {/* 內容 */}
           <div className="px-8 py-6">
             {children}
           </div>

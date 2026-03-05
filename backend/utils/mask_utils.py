@@ -1,6 +1,6 @@
 """
-掩码图像生成工具
-用于从边界框（bbox）生成黑白掩码图像
+掩碼影象生成工具
+用於從邊界框（bbox）生成黑白掩碼影象
 """
 import logging
 from typing import List, Tuple, Union, Callable
@@ -9,14 +9,14 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger(__name__)
 
 
-# ============== Bbox 工具函数 ==============
+# ============== Bbox 工具函式 ==============
 
 def normalize_bbox(bbox: Union[Tuple, List, dict]) -> Tuple[int, int, int, int]:
     """
-    将各种格式的bbox标准化为 (x1, y1, x2, y2) 元组格式
+    將各種格式的bbox標準化為 (x1, y1, x2, y2) 元組格式
     
-    支持的输入格式：
-    - 元组/列表: (x1, y1, x2, y2)
+    支援的輸入格式：
+    - 元組/列表: (x1, y1, x2, y2)
     - 字典: {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
     - 字典: {"x": x, "y": y, "width": w, "height": h}
     """
@@ -28,15 +28,15 @@ def normalize_bbox(bbox: Union[Tuple, List, dict]) -> Tuple[int, int, int, int]:
                    bbox['x'] + bbox['width'], 
                    bbox['y'] + bbox['height'])
         else:
-            raise ValueError(f"无法识别的bbox字典格式: {bbox}")
+            raise ValueError(f"無法識別的bbox字典格式: {bbox}")
     elif isinstance(bbox, (tuple, list)) and len(bbox) == 4:
         return tuple(bbox)
     else:
-        raise ValueError(f"无法识别的bbox格式: {bbox}")
+        raise ValueError(f"無法識別的bbox格式: {bbox}")
 
 
 def normalize_bboxes(bboxes: List[Union[Tuple, List, dict]]) -> List[Tuple[int, int, int, int]]:
-    """批量标准化bbox列表"""
+    """批次標準化bbox列表"""
     result = []
     for bbox in bboxes:
         try:
@@ -47,7 +47,7 @@ def normalize_bboxes(bboxes: List[Union[Tuple, List, dict]]) -> List[Tuple[int, 
 
 
 def merge_two_boxes(box1: Tuple, box2: Tuple) -> Tuple[int, int, int, int]:
-    """合并两个bbox为一个包含它们的最小bbox"""
+    """合併兩個bbox為一個包含它們的最小bbox"""
     return (
         min(box1[0], box2[0]),
         min(box1[1], box2[1]),
@@ -61,14 +61,14 @@ def _iterative_merge(
     should_merge_fn: Callable[[Tuple, Tuple], bool]
 ) -> List[Tuple[int, int, int, int]]:
     """
-    通用的迭代合并算法
+    通用的迭代合併演算法
     
     Args:
-        bboxes: 标准化后的bbox列表
-        should_merge_fn: 判断两个bbox是否应该合并的函数
+        bboxes: 標準化後的bbox列表
+        should_merge_fn: 判斷兩個bbox是否應該合併的函式
     
     Returns:
-        合并后的bbox列表
+        合併後的bbox列表
     """
     if not bboxes:
         return []
@@ -114,30 +114,30 @@ def create_mask_from_bboxes(
     expand_pixels: int = 0
 ) -> Image.Image:
     """
-    从边界框列表创建掩码图像
+    從邊界框列表建立掩碼影象
     
     Args:
-        image_size: 图像尺寸 (width, height)
-        bboxes: 边界框列表，每个元素可以是：
-                - 元组格式: (x1, y1, x2, y2) 其中 (x1,y1) 是左上角，(x2,y2) 是右下角
+        image_size: 影象尺寸 (width, height)
+        bboxes: 邊界框列表，每個元素可以是：
+                - 元組格式: (x1, y1, x2, y2) 其中 (x1,y1) 是左上角，(x2,y2) 是右下角
                 - 字典格式: {"x": x, "y": y, "width": w, "height": h}
                 - 字典格式: {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
-        mask_color: 掩码区域的颜色（默认白色），表示需要消除的区域
-        background_color: 背景区域的颜色（默认黑色），表示保留的区域
-        expand_pixels: 扩展像素数，可以让掩码区域略微扩大（用于更好的消除效果）
+        mask_color: 掩碼區域的顏色（預設白色），表示需要消除的區域
+        background_color: 背景區域的顏色（預設黑色），表示保留的區域
+        expand_pixels: 擴充套件畫素數，可以讓掩碼區域略微擴大（用於更好的消除效果）
         
     Returns:
-        PIL Image 对象，RGB 模式的掩码图像
+        PIL Image 物件，RGB 模式的掩碼影象
     """
     try:
-        # 创建黑色背景图像
+        # 建立黑色背景影象
         mask = Image.new('RGB', image_size, background_color)
         draw = ImageDraw.Draw(mask)
         
-        logger.info(f"创建掩码图像，尺寸: {image_size}, bbox数量: {len(bboxes)}")
+        logger.info(f"建立掩碼影象，尺寸: {image_size}, bbox數量: {len(bboxes)}")
         
-        # 绘制每个 bbox 为白色区域
-        bbox_list = []  # 用于记录所有bbox坐标
+        # 繪製每個 bbox 為白色區域
+        bbox_list = []  # 用於記錄所有bbox座標
         for i, bbox in enumerate(bboxes):
             # 解析不同格式的 bbox
             if isinstance(bbox, dict):
@@ -154,71 +154,71 @@ def create_mask_from_bboxes(
                     x2 = x1 + bbox['width']
                     y2 = y1 + bbox['height']
                 else:
-                    logger.warning(f"无法识别的 bbox 字典格式: {bbox}")
+                    logger.warning(f"無法識別的 bbox 字典格式: {bbox}")
                     continue
             elif isinstance(bbox, (tuple, list)) and len(bbox) == 4:
                 # 格式: (x1, y1, x2, y2)
                 x1, y1, x2, y2 = bbox
             else:
-                logger.warning(f"无法识别的 bbox 格式: {bbox}")
+                logger.warning(f"無法識別的 bbox 格式: {bbox}")
                 continue
             
-            # 记录原始坐标
+            # 記錄原始座標
             x1_orig, y1_orig, x2_orig, y2_orig = x1, y1, x2, y2
             
-            # 应用扩展或收缩
+            # 應用擴充套件或收縮
             if expand_pixels > 0:
-                # 扩展
+                # 擴充套件
                 x1 = max(0, x1 - expand_pixels)
                 y1 = max(0, y1 - expand_pixels)
                 x2 = min(image_size[0], x2 + expand_pixels)
                 y2 = min(image_size[1], y2 + expand_pixels)
             elif expand_pixels < 0:
-                # 收缩（向内收缩）
+                # 收縮（向內收縮）
                 shrink = abs(expand_pixels)
                 x1 = x1 + shrink
                 y1 = y1 + shrink
                 x2 = x2 - shrink
                 y2 = y2 - shrink
-                # 确保收缩后仍然有效（宽度和高度必须大于0）
+                # 確保收縮後仍然有效（寬度和高度必須大於0）
                 if x2 <= x1 or y2 <= y1:
-                    logger.warning(f"bbox {i+1} 收缩后无效: ({x1}, {y1}, {x2}, {y2})，跳过")
+                    logger.warning(f"bbox {i+1} 收縮後無效: ({x1}, {y1}, {x2}, {y2})，跳過")
                     continue
             
-            # 确保坐标在图像范围内
+            # 確保座標在影象範圍內
             x1 = max(0, min(x1, image_size[0]))
             y1 = max(0, min(y1, image_size[1]))
             x2 = max(0, min(x2, image_size[0]))
             y2 = max(0, min(y2, image_size[1]))
             
-            # 再次检查有效性
+            # 再次檢查有效性
             if x2 <= x1 or y2 <= y1:
-                logger.warning(f"bbox {i+1} 最终坐标无效: ({x1}, {y1}, {x2}, {y2})，跳过")
+                logger.warning(f"bbox {i+1} 最終座標無效: ({x1}, {y1}, {x2}, {y2})，跳過")
                 continue
             
-            # 绘制矩形
+            # 繪製矩形
             draw.rectangle([x1, y1, x2, y2], fill=mask_color)
             width = x2 - x1
             height = y2 - y1
             if expand_pixels > 0:
-                bbox_list.append(f"  [{i+1}] 原始: ({x1_orig}, {y1_orig}, {x2_orig}, {y2_orig}) -> 扩展后: ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
+                bbox_list.append(f"  [{i+1}] 原始: ({x1_orig}, {y1_orig}, {x2_orig}, {y2_orig}) -> 擴充套件後: ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
             elif expand_pixels < 0:
-                bbox_list.append(f"  [{i+1}] 原始: ({x1_orig}, {y1_orig}, {x2_orig}, {y2_orig}) -> 收缩后: ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
+                bbox_list.append(f"  [{i+1}] 原始: ({x1_orig}, {y1_orig}, {x2_orig}, {y2_orig}) -> 收縮後: ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
             else:
                 bbox_list.append(f"  [{i+1}] ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
             logger.debug(f"bbox {i+1}: ({x1}, {y1}, {x2}, {y2}) 尺寸: {width}x{height}")
         
-        # 输出所有bbox的详细信息
+        # 輸出所有bbox的詳細資訊
         if bbox_list:
-            logger.info(f"添加了 {len(bbox_list)} 个bbox的mask:")
+            logger.info(f"新增了 {len(bbox_list)} 個bbox的mask:")
             for bbox_info in bbox_list:
                 logger.info(bbox_info)
         
-        logger.info(f"掩码图像创建完成")
+        logger.info(f"掩碼影象建立完成")
         return mask
         
     except Exception as e:
-        logger.error(f"创建掩码图像失败: {str(e)}", exc_info=True)
+        logger.error(f"建立掩碼影象失敗: {str(e)}", exc_info=True)
         raise
 
 
@@ -228,22 +228,22 @@ def create_inverse_mask_from_bboxes(
     expand_pixels: int = 0
 ) -> Image.Image:
     """
-    创建反向掩码（保留 bbox 区域，消除其他区域）
+    建立反向掩碼（保留 bbox 區域，消除其他區域）
     
     Args:
-        image_size: 图像尺寸 (width, height)
-        bboxes: 边界框列表
-        expand_pixels: 扩展像素数
+        image_size: 影象尺寸 (width, height)
+        bboxes: 邊界框列表
+        expand_pixels: 擴充套件畫素數
         
     Returns:
-        PIL Image 对象，反向掩码图像
+        PIL Image 物件，反向掩碼影象
     """
-    # 交换颜色即可
+    # 交換顏色即可
     return create_mask_from_bboxes(
         image_size,
         bboxes,
-        mask_color=(0, 0, 0),  # bbox 区域为黑色（保留）
-        background_color=(255, 255, 255),  # 背景为白色（消除）
+        mask_color=(0, 0, 0),  # bbox 區域為黑色（保留）
+        background_color=(255, 255, 255),  # 背景為白色（消除）
         expand_pixels=expand_pixels
     )
 
@@ -254,15 +254,15 @@ def create_mask_from_image_and_bboxes(
     expand_pixels: int = 0
 ) -> Image.Image:
     """
-    从图像和边界框创建掩码（便捷函数）
+    從影象和邊界框建立掩碼（便捷函式）
     
     Args:
-        image: 原始图像
-        bboxes: 边界框列表
-        expand_pixels: 扩展像素数
+        image: 原始影象
+        bboxes: 邊界框列表
+        expand_pixels: 擴充套件畫素數
         
     Returns:
-        掩码图像
+        掩碼影象
     """
     return create_mask_from_bboxes(
         image.size,
@@ -277,40 +277,40 @@ def visualize_mask_overlay(
     alpha: float = 0.5
 ) -> Image.Image:
     """
-    将掩码叠加到原始图像上以便可视化
+    將掩碼疊加到原始影象上以便視覺化
     
     Args:
-        original_image: 原始图像
-        mask_image: 掩码图像
-        alpha: 掩码透明度 (0.0-1.0)
+        original_image: 原始影象
+        mask_image: 掩碼影象
+        alpha: 掩碼透明度 (0.0-1.0)
         
     Returns:
-        叠加后的图像
+        疊加後的影象
     """
     try:
-        # 确保两个图像尺寸相同
+        # 確保兩個影象尺寸相同
         if original_image.size != mask_image.size:
-            logger.warning(f"图像尺寸不匹配，调整掩码尺寸: {mask_image.size} -> {original_image.size}")
+            logger.warning(f"影象尺寸不匹配，調整掩碼尺寸: {mask_image.size} -> {original_image.size}")
             mask_image = mask_image.resize(original_image.size, Image.LANCZOS)
         
-        # 转换为 RGBA
+        # 轉換為 RGBA
         if original_image.mode != 'RGBA':
             original_rgba = original_image.convert('RGBA')
         else:
             original_rgba = original_image.copy()
         
-        # 创建黑色半透明掩码用于可视化
+        # 建立黑色半透明掩碼用於視覺化
         mask_rgba = Image.new('RGBA', original_image.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(mask_rgba)
         
-        # 遍历掩码图像，将白色区域绘制为黑色半透明
+        # 遍歷掩碼影象，將白色區域繪製為黑色半透明
         mask_array = mask_image.load()
         mask_rgba_array = mask_rgba.load()
         
         for y in range(mask_image.size[1]):
             for x in range(mask_image.size[0]):
                 pixel = mask_array[x, y]
-                # 如果是白色（或接近白色），设置为黑色半透明
+                # 如果是白色（或接近白色），設定為黑色半透明
                 if isinstance(pixel, tuple):
                     brightness = sum(pixel) / len(pixel)
                 else:
@@ -319,12 +319,12 @@ def visualize_mask_overlay(
                 if brightness > 200:  # 接近白色
                     mask_rgba_array[x, y] = (0, 0, 0, int(128 * alpha))
         
-        # 叠加
+        # 疊加
         result = Image.alpha_composite(original_rgba, mask_rgba)
         return result.convert('RGB')
         
     except Exception as e:
-        logger.error(f"可视化掩码叠加失败: {str(e)}", exc_info=True)
+        logger.error(f"視覺化掩碼疊加失敗: {str(e)}", exc_info=True)
         return original_image
 
 
@@ -334,21 +334,21 @@ def merge_vertical_nearby_bboxes(
     horizontal_overlap_ratio: float = 0.3
 ) -> List[Tuple[int, int, int, int]]:
     """
-    合并上下间距很小的边界框（适用于文字行合并）
+    合併上下間距很小的邊界框（適用於文字行合併）
     
-    合并策略（基于原始bbox判断，避免雪球效应）：
-    - 按y坐标排序后，先判断每对相邻原始bbox是否应该合并
-    - 如果垂直间距小于平均行高的 vertical_gap_ratio 倍
-    - 并且在水平方向上有至少 horizontal_overlap_ratio 的重叠
-    - 则标记为可合并，最后统一执行合并
+    合併策略（基於原始bbox判斷，避免雪球效應）：
+    - 按y座標排序後，先判斷每對相鄰原始bbox是否應該合併
+    - 如果垂直間距小於平均行高的 vertical_gap_ratio 倍
+    - 並且在水平方向上有至少 horizontal_overlap_ratio 的重疊
+    - 則標記為可合併，最後統一執行合併
     
     Args:
-        bboxes: 边界框列表 [(x1, y1, x2, y2), ...]
-        vertical_gap_ratio: 垂直间距阈值，相对于平均行高的比例，默认0.8
-        horizontal_overlap_ratio: 水平重叠比例阈值，默认0.3
+        bboxes: 邊界框列表 [(x1, y1, x2, y2), ...]
+        vertical_gap_ratio: 垂直間距閾值，相對於平均行高的比例，預設0.8
+        horizontal_overlap_ratio: 水平重疊比例閾值，預設0.3
         
     Returns:
-        合并后的边界框列表
+        合併後的邊界框列表
     """
     if not bboxes or len(bboxes) <= 1:
         return list(bboxes) if bboxes else []
@@ -357,15 +357,15 @@ def merge_vertical_nearby_bboxes(
     if not normalized:
         return []
     
-    # 按y坐标排序（从上到下）
+    # 按y座標排序（從上到下）
     normalized.sort(key=lambda b: b[1])
     
-    # 计算原始bbox的平均行高
+    # 計算原始bbox的平均行高
     avg_height = sum(b[3] - b[1] for b in normalized) / len(normalized)
     max_vertical_gap = avg_height * vertical_gap_ratio
     
     def get_horizontal_overlap(box1, box2):
-        """计算两个bbox在水平方向的重叠比例（相对于较小的宽度）"""
+        """計算兩個bbox在水平方向的重疊比例（相對於較小的寬度）"""
         overlap_start = max(box1[0], box2[0])
         overlap_end = min(box1[2], box2[2])
         overlap = max(0, overlap_end - overlap_start)
@@ -373,20 +373,20 @@ def merge_vertical_nearby_bboxes(
         return overlap / min_width if min_width > 0 else 0
     
     def should_merge_adjacent(box1, box2):
-        """判断两个相邻（按y排序）的原始bbox是否应该合并"""
-        # 垂直间距 = box2的顶部 - box1的底部
+        """判斷兩個相鄰（按y排序）的原始bbox是否應該合併"""
+        # 垂直間距 = box2的頂部 - box1的底部
         v_gap = box2[1] - box1[3]
         
-        # 如果垂直间距太大，不合并
+        # 如果垂直間距太大，不合並
         if v_gap > max_vertical_gap:
             return False
         
-        # 检查水平重叠
+        # 檢查水平重疊
         h_overlap = get_horizontal_overlap(box1, box2)
         if h_overlap >= horizontal_overlap_ratio:
             return True
         
-        # 没有重叠但水平距离很近也合并
+        # 沒有重疊但水平距離很近也合併
         if h_overlap <= 0:
             h_gap = max(0, max(box2[0] - box1[2], box1[0] - box2[2]))
             if h_gap < avg_height:
@@ -394,28 +394,28 @@ def merge_vertical_nearby_bboxes(
         
         return False
     
-    # 第一步：基于原始bbox判断哪些相邻对应该合并
+    # 第一步：基於原始bbox判斷哪些相鄰對應該合併
     merge_with_next = []
     for i in range(len(normalized) - 1):
         merge_with_next.append(should_merge_adjacent(normalized[i], normalized[i + 1]))
     
-    # 第二步：根据标记执行合并
+    # 第二步：根據標記執行合併
     result = []
     current_box = normalized[0]
     
     for i in range(len(merge_with_next)):
         if merge_with_next[i]:
-            # 和下一个合并
+            # 和下一個合併
             current_box = merge_two_boxes(current_box, normalized[i + 1])
         else:
-            # 不合并，保存当前，开始新组
+            # 不合並，儲存當前，開始新組
             result.append(current_box)
             current_box = normalized[i + 1]
     
-    # 添加最后一个
+    # 新增最後一個
     result.append(current_box)
     
-    logger.info(f"合并相邻文字行bbox：{len(bboxes)} -> {len(result)}")
+    logger.info(f"合併相鄰文字行bbox：{len(bboxes)} -> {len(result)}")
     return result
 
 
@@ -424,14 +424,14 @@ def merge_overlapping_bboxes(
     merge_threshold: int = 10
 ) -> List[Tuple[int, int, int, int]]:
     """
-    合并重叠或相邻的边界框
+    合併重疊或相鄰的邊界框
     
     Args:
-        bboxes: 边界框列表 [(x1, y1, x2, y2), ...]
-        merge_threshold: 合并阈值（像素），边界框距离小于此值时会合并
+        bboxes: 邊界框列表 [(x1, y1, x2, y2), ...]
+        merge_threshold: 合併閾值（畫素），邊界框距離小於此值時會合並
         
     Returns:
-        合并后的边界框列表
+        合併後的邊界框列表
     """
     if not bboxes:
         return []
@@ -447,6 +447,6 @@ def merge_overlapping_bboxes(
                 y1 - merge_threshold <= by2 and by1 <= y2 + merge_threshold)
     
     result = _iterative_merge(normalized, should_merge)
-    logger.info(f"合并边界框：{len(bboxes)} -> {len(result)}")
+    logger.info(f"合併邊界框：{len(bboxes)} -> {len(result)}")
     return result
 

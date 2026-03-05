@@ -13,7 +13,7 @@ function App() {
   const { currentProject, syncProject, error, setError } = useProjectStore();
   const { show, ToastContainer } = useToast();
 
-  // 恢复项目状态
+  // 恢復專案狀態
   useEffect(() => {
     const savedProjectId = localStorage.getItem('currentProjectId');
     if (savedProjectId && !currentProject) {
@@ -21,7 +21,7 @@ function App() {
     }
   }, [currentProject, syncProject]);
 
-  // 显示全局错误
+  // 顯示全域性錯誤
   useEffect(() => {
     if (error) {
       show({ message: error, type: 'error' });

@@ -1,4 +1,4 @@
-"""OCR相关的AI Provider"""
+"""OCR相關的AI Provider"""
 
 from services.ai_providers.ocr.baidu_table_ocr_provider import (
     BaiduTableOCRProvider,

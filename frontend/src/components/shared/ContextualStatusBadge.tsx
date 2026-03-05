@@ -5,18 +5,18 @@ import { usePageStatus, type PageStatusContext } from '@/hooks/usePageStatus';
 
 interface ContextualStatusBadgeProps {
   page: Page;
-  /** 上下文：description（描述页）、image（图片页）、full（完整状态） */
+  /** 上下文：description（描述頁）、image（圖片頁）、full（完整狀態） */
   context?: PageStatusContext;
-  /** 是否显示详细描述（悬停提示） */
+  /** 是否顯示詳細描述（懸停提示） */
   showDescription?: boolean;
 }
 
 /**
- * 根据上下文智能显示状态的徽章
+ * 根據上下文智慧顯示狀態的徽章
  * 
- * - 在描述编辑页面：只显示描述相关状态
- * - 在图片预览页面：显示图片生成状态
- * - 其他场景：显示完整页面状态
+ * - 在描述編輯頁面：只顯示描述相關狀態
+ * - 在圖片預覽頁面：顯示圖片生成狀態
+ * - 其他場景：顯示完整頁面狀態
  */
 export const ContextualStatusBadge: React.FC<ContextualStatusBadgeProps> = ({
   page,

@@ -27,7 +27,7 @@ export const History: React.FC = () => {
     loadProjects();
   }, []);
 
-  // ===== 数据加载 =====
+  // ===== 資料載入 =====
 
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
@@ -39,50 +39,50 @@ export const History: React.FC = () => {
         setProjects(normalizedProjects);
       }
     } catch (err: any) {
-      console.error('加载历史项目失败:', err);
-      setError(err.message || '加载历史项目失败');
+      console.error('載入歷史專案失敗:', err);
+      setError(err.message || '載入歷史專案失敗');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // ===== 项目选择与导航 =====
+  // ===== 專案選擇與導航 =====
 
   const handleSelectProject = useCallback(async (project: Project) => {
     const projectId = project.id || project.project_id;
     if (!projectId) return;
 
-    // 如果正在批量选择模式，不跳转
+    // 如果正在批次選擇模式，不跳轉
     if (selectedProjects.size > 0) {
       return;
     }
 
-    // 如果正在编辑该项目，不跳转
+    // 如果正在編輯該專案，不跳轉
     if (editingProjectId === projectId) {
       return;
     }
 
     try {
-      // 设置当前项目
+      // 設定當前專案
       setCurrentProject(project);
       localStorage.setItem('currentProjectId', projectId);
       
-      // 同步项目数据
+      // 同步專案資料
       await syncProject(projectId);
       
-      // 根据项目状态跳转到不同页面
+      // 根據專案狀態跳轉到不同頁面
       const route = getProjectRoute(project);
       navigate(route, { state: { from: 'history' } });
     } catch (err: any) {
-      console.error('打开项目失败:', err);
+      console.error('開啟專案失敗:', err);
       show({ 
-        message: '打开项目失败: ' + (err.message || '未知错误'), 
+        message: '開啟專案失敗: ' + (err.message || '未知錯誤'), 
         type: 'error' 
       });
     }
   }, [selectedProjects, editingProjectId, setCurrentProject, syncProject, navigate, getProjectRoute, show]);
 
-  // ===== 批量选择操作 =====
+  // ===== 批次選擇操作 =====
 
   const handleToggleSelect = useCallback((projectId: string) => {
     setSelectedProjects(prev => {
@@ -107,7 +107,7 @@ export const History: React.FC = () => {
     });
   }, [projects]);
 
-  // ===== 删除操作 =====
+  // ===== 刪除操作 =====
 
   const deleteProjects = useCallback(async (projectIds: string[]) => {
     setIsDeleting(true);
@@ -115,41 +115,41 @@ export const History: React.FC = () => {
     let deletedCurrentProject = false;
 
     try {
-      // 批量删除
+      // 批次刪除
       const deletePromises = projectIds.map(projectId => api.deleteProject(projectId));
       await Promise.all(deletePromises);
 
-      // 检查是否删除了当前项目
+      // 檢查是否刪除了當前專案
       if (currentProjectId && projectIds.includes(currentProjectId)) {
         localStorage.removeItem('currentProjectId');
         setCurrentProject(null);
         deletedCurrentProject = true;
       }
 
-      // 从列表中移除已删除的项目
+      // 從列表中移除已刪除的專案
       setProjects(prev => prev.filter(p => {
         const id = p.id || p.project_id;
         return id && !projectIds.includes(id);
       }));
 
-      // 清空选择
+      // 清空選擇
       setSelectedProjects(new Set());
 
       if (deletedCurrentProject) {
         show({ 
-          message: '已删除项目，包括当前打开的项目', 
+          message: '已刪除專案，包括當前開啟的專案', 
           type: 'info' 
         });
       } else {
         show({ 
-          message: `成功删除 ${projectIds.length} 个项目`, 
+          message: `成功刪除 ${projectIds.length} 個專案`, 
           type: 'success' 
         });
       }
     } catch (err: any) {
-      console.error('删除项目失败:', err);
+      console.error('刪除專案失敗:', err);
       show({ 
-        message: '删除项目失败: ' + (err.message || '未知错误'), 
+        message: '刪除專案失敗: ' + (err.message || '未知錯誤'), 
         type: 'error' 
       });
     } finally {
@@ -158,18 +158,18 @@ export const History: React.FC = () => {
   }, [setCurrentProject, show]);
 
   const handleDeleteProject = useCallback(async (e: React.MouseEvent, project: Project) => {
-    e.stopPropagation(); // 阻止事件冒泡，避免触发项目选择
+    e.stopPropagation(); // 阻止事件冒泡，避免觸發專案選擇
     
     const projectId = project.id || project.project_id;
     if (!projectId) return;
 
     const projectTitle = getProjectTitle(project);
     confirm(
-      `确定要删除项目"${projectTitle}"吗？此操作不可恢复。`,
+      `確定要刪除專案"${projectTitle}"嗎？此操作不可恢復。`,
       async () => {
         await deleteProjects([projectId]);
       },
-      { title: '确认删除', variant: 'danger' }
+      { title: '確認刪除', variant: 'danger' }
     );
   }, [confirm, deleteProjects]);
 
@@ -178,21 +178,21 @@ export const History: React.FC = () => {
 
     const count = selectedProjects.size;
     confirm(
-      `确定要删除选中的 ${count} 个项目吗？此操作不可恢复。`,
+      `確定要刪除選中的 ${count} 個專案嗎？此操作不可恢復。`,
       async () => {
         const projectIds = Array.from(selectedProjects);
         await deleteProjects(projectIds);
       },
-      { title: '确认批量删除', variant: 'danger' }
+      { title: '確認批次刪除', variant: 'danger' }
     );
   }, [selectedProjects, confirm, deleteProjects]);
 
-  // ===== 编辑操作 =====
+  // ===== 編輯操作 =====
 
   const handleStartEdit = useCallback((e: React.MouseEvent, project: Project) => {
-    e.stopPropagation(); // 阻止事件冒泡，避免触发项目选择
+    e.stopPropagation(); // 阻止事件冒泡，避免觸發專案選擇
     
-    // 如果正在批量选择模式，不允许编辑
+    // 如果正在批次選擇模式，不允許編輯
     if (selectedProjects.size > 0) {
       return;
     }
@@ -212,15 +212,15 @@ export const History: React.FC = () => {
 
   const handleSaveEdit = useCallback(async (projectId: string) => {
     if (!editingTitle.trim()) {
-      show({ message: '项目名称不能为空', type: 'error' });
+      show({ message: '專案名稱不能為空', type: 'error' });
       return;
     }
 
     try {
-      // 调用API更新项目名称
+      // 呼叫API更新專案名稱
       await api.updateProject(projectId, { idea_prompt: editingTitle.trim() });
       
-      // 更新本地状态
+      // 更新本地狀態
       setProjects(prev => prev.map(p => {
         const id = p.id || p.project_id;
         if (id === projectId) {
@@ -231,11 +231,11 @@ export const History: React.FC = () => {
 
       setEditingProjectId(null);
       setEditingTitle('');
-      show({ message: '项目名称已更新', type: 'success' });
+      show({ message: '專案名稱已更新', type: 'success' });
     } catch (err: any) {
-      console.error('更新项目名称失败:', err);
+      console.error('更新專案名稱失敗:', err);
       show({ 
-        message: '更新项目名称失败: ' + (err.message || '未知错误'), 
+        message: '更新專案名稱失敗: ' + (err.message || '未知錯誤'), 
         type: 'error' 
       });
     }
@@ -253,7 +253,7 @@ export const History: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-banana-50 via-white to-gray-50">
-      {/* 导航栏 */}
+      {/* 導航欄 */}
       <nav className="h-14 md:h-16 bg-white shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -270,24 +270,24 @@ export const History: React.FC = () => {
               onClick={() => navigate('/')}
               className="text-xs md:text-sm"
             >
-              <span className="hidden sm:inline">主页</span>
-              <span className="sm:hidden">主页</span>
+              <span className="hidden sm:inline">主頁</span>
+              <span className="sm:hidden">主頁</span>
             </Button>
           </div>
         </div>
       </nav>
 
-      {/* 主内容 */}
+      {/* 主內容 */}
       <main className="max-w-6xl mx-auto px-3 md:px-4 py-6 md:py-8">
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">历史项目</h1>
-            <p className="text-sm md:text-base text-gray-600">查看和管理你的所有项目</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">歷史專案</h1>
+            <p className="text-sm md:text-base text-gray-600">檢視和管理你的所有專案</p>
           </div>
           {projects.length > 0 && selectedProjects.size > 0 && (
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">
-                已选择 {selectedProjects.size} 项
+                已選擇 {selectedProjects.size} 項
               </span>
               <Button
                 variant="secondary"
@@ -295,7 +295,7 @@ export const History: React.FC = () => {
                 onClick={() => setSelectedProjects(new Set())}
                 disabled={isDeleting}
               >
-                取消选择
+                取消選擇
               </Button>
               <Button
                 variant="secondary"
@@ -305,7 +305,7 @@ export const History: React.FC = () => {
                 disabled={isDeleting}
                 loading={isDeleting}
               >
-                批量删除
+                批次刪除
               </Button>
             </div>
           )}
@@ -313,32 +313,32 @@ export const History: React.FC = () => {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loading message="加载中..." />
+            <Loading message="載入中..." />
           </div>
         ) : error ? (
           <Card className="p-8 text-center">
             <div className="text-6xl mb-4">⚠️</div>
             <p className="text-gray-600 mb-4">{error}</p>
             <Button variant="primary" onClick={loadProjects}>
-              重试
+              重試
             </Button>
           </Card>
         ) : projects.length === 0 ? (
           <Card className="p-12 text-center">
             <div className="text-6xl mb-4">📭</div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
-              暂无历史项目
+              暫無歷史專案
             </h3>
             <p className="text-gray-500 mb-6">
-              创建你的第一个项目开始使用吧
+              建立你的第一個專案開始使用吧
             </p>
             <Button variant="primary" onClick={() => navigate('/')}>
-              创建新项目
+              建立新專案
             </Button>
           </Card>
         ) : (
           <div className="space-y-4">
-            {/* 全选工具栏 */}
+            {/* 全選工具欄 */}
             {projects.length > 0 && (
               <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -349,7 +349,7 @@ export const History: React.FC = () => {
                     className="w-4 h-4 text-banana-600 border-gray-300 rounded focus:ring-banana-500"
                   />
                   <span className="text-sm text-gray-700">
-                    {selectedProjects.size === projects.length ? '取消全选' : '全选'}
+                    {selectedProjects.size === projects.length ? '取消全選' : '全選'}
                   </span>
                 </label>
               </div>

@@ -16,7 +16,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { show } = useToast();
   
-  // 使用 ref 保存函数引用，避免依赖项变化导致无限循环
+  // 使用 ref 儲存函式引用，避免依賴項變化導致無限迴圈
   const onCloseRef = useRef(onClose);
   const showRef = useRef(show);
   
@@ -40,10 +40,10 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         if (response.data?.file) {
           const fileData = response.data.file;
           
-          // 检查文件是否已解析完成
+          // 檢查檔案是否已解析完成
           if (fileData.parse_status !== 'completed') {
             showRef.current({
-              message: '文件尚未解析完成，无法预览',
+              message: '檔案尚未解析完成，無法預覽',
               type: 'info',
             });
             onCloseRef.current();
@@ -51,12 +51,12 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           }
 
           setFile(fileData);
-          setContent(fileData.markdown_content || '暂无内容');
+          setContent(fileData.markdown_content || '暫無內容');
         }
       } catch (error: any) {
-        console.error('加载文件内容失败:', error);
+        console.error('載入檔案內容失敗:', error);
         showRef.current({
-          message: error?.response?.data?.error?.message || error.message || '加载文件内容失败',
+          message: error?.response?.data?.error?.message || error.message || '載入檔案內容失敗',
           type: 'error',
         });
         setFile(null);
@@ -67,18 +67,18 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     };
 
     loadFile();
-  }, [fileId]); // 只依赖 fileId
+  }, [fileId]); // 只依賴 fileId
 
   return (
     <Modal
       isOpen={fileId !== null}
       onClose={onClose}
-      title={file?.filename || '文件预览'}
+      title={file?.filename || '檔案預覽'}
       size="xl"
     >
       {isLoading ? (
         <div className="text-center py-8">
-          <Loading message="加载文件内容中..." />
+          <Loading message="載入檔案內容中..." />
         </div>
       ) : content ? (
         <div className="max-h-[70vh] overflow-y-auto">
@@ -88,7 +88,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         </div>
       ) : (
         <div className="text-center py-8 text-gray-500">
-          <p>暂无内容</p>
+          <p>暫無內容</p>
         </div>
       )}
     </Modal>

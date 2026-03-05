@@ -168,7 +168,7 @@ def upload_user_template():
         db.session.rollback()
         error_msg = str(e)
         logger.error(f"Error uploading user template: {error_msg}", exc_info=True)
-        # 在开发环境中返回详细错误，生产环境返回通用错误
+        # 在開發環境中返回詳細錯誤，生產環境返回通用錯誤
         if current_app.config.get('DEBUG', False):
             return error_response('SERVER_ERROR', f"{error_msg}\n{traceback.format_exc()}", 500)
         else:

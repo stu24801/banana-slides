@@ -85,12 +85,12 @@ def create_app():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
     
-    # 设置第三方库的日志级别，避免过多的DEBUG日志
+    # 設定第三方庫的日誌級別，避免過多的DEBUG日誌
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
     logging.getLogger('httpcore').setLevel(logging.WARNING)
     logging.getLogger('httpx').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('werkzeug').setLevel(logging.INFO)  # Flask开发服务器日志保持INFO
+    logging.getLogger('werkzeug').setLevel(logging.INFO)  # Flask開發伺服器日誌保持INFO
 
     # Initialize extensions
     db.init_app(app)
@@ -123,7 +123,7 @@ def create_app():
     @app.route('/api/output-language', methods=['GET'])
     def get_output_language():
         """
-        获取用户的输出语言偏好（从数据库 Settings 读取）
+        獲取使用者的輸出語言偏好（從資料庫 Settings 讀取）
         返回: zh, ja, en, auto
         """
         from models import Settings
@@ -132,7 +132,7 @@ def create_app():
             return {'data': {'language': settings.output_language}}
         except SQLAlchemyError as db_error:
             logging.warning(f"Failed to load output language from settings: {db_error}")
-            return {'data': {'language': Config.OUTPUT_LANGUAGE}}  # 默认中文
+            return {'data': {'language': Config.OUTPUT_LANGUAGE}}  # 預設中文
 
     # Root endpoint
     @app.route('/')
@@ -166,7 +166,7 @@ def _load_settings_to_config(app):
         # Note: We load even if value is None/empty to allow clearing settings
         # But we only log if there's an actual value
         if settings.api_base_url is not None:
-            # 将数据库中的统一 API Base 同步到 Google/OpenAI 两个配置，确保覆盖环境变量
+            # 將資料庫中的統一 API Base 同步到 Google/OpenAI 兩個配置，確保覆蓋環境變數
             app.config['GOOGLE_API_BASE'] = settings.api_base_url
             app.config['OPENAI_API_BASE'] = settings.api_base_url
             if settings.api_base_url:
@@ -175,7 +175,7 @@ def _load_settings_to_config(app):
                 logging.info("API_BASE is empty in settings, using env var or default")
 
         if settings.api_key is not None:
-            # 同步到两个提供商的 key，数据库优先于环境变量
+            # 同步到兩個提供商的 key，資料庫優先於環境變數
             app.config['GOOGLE_API_KEY'] = settings.api_key
             app.config['OPENAI_API_KEY'] = settings.api_key
             if settings.api_key:
@@ -244,7 +244,7 @@ app = create_app()
 if __name__ == '__main__':
     # Run development server
     if os.getenv("IN_DOCKER", "0") == "1":
-        port = 5000  # Docker 容器内部固定使用 5000 端口
+        port = 5000  # Docker 容器內部固定使用 5000 埠
     else:
         port = int(os.getenv('BACKEND_PORT', 5000))
     debug = os.getenv('FLASK_ENV', 'development') == 'development'

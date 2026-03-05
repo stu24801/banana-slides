@@ -652,7 +652,7 @@ class FileParserService:
                 return ""
             
             # Generate caption based on provider format
-            prompt = "请用一句简短的中文描述这张图片的主要内容。只返回描述文字，不要其他解释。"
+            prompt = "請用一句簡短的中文描述這張圖片的主要內容。只返回描述文字，不要其他解釋。"
             
             if self._provider_format == 'openai':
                 # Use OpenAI SDK format

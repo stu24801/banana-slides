@@ -1,12 +1,12 @@
 """
-坐标映射工具 - 处理父子图片间的坐标转换
+座標對映工具 - 處理父子圖片間的座標轉換
 """
 from typing import Tuple
 from .data_models import BBox
 
 
 class CoordinateMapper:
-    """坐标映射工具 - 处理父子图片间的坐标转换"""
+    """座標對映工具 - 處理父子圖片間的座標轉換"""
     
     @staticmethod
     def local_to_global(
@@ -16,25 +16,25 @@ class CoordinateMapper:
         parent_image_size: Tuple[int, int]
     ) -> BBox:
         """
-        将子图的局部坐标转换为父图（或根图）的全局坐标
+        將子圖的區域性座標轉換為父圖（或根圖）的全域性座標
         
         Args:
-            local_bbox: 子图坐标系中的bbox
-            parent_bbox: 子图在父图中的位置
-            local_image_size: 子图尺寸 (width, height)
-            parent_image_size: 父图尺寸 (width, height)
+            local_bbox: 子圖座標系中的bbox
+            parent_bbox: 子圖在父圖中的位置
+            local_image_size: 子圖尺寸 (width, height)
+            parent_image_size: 父圖尺寸 (width, height)
         
         Returns:
-            在父图坐标系中的bbox
+            在父圖座標系中的bbox
         """
-        # 计算缩放比例（子图实际像素 vs 子图在父图中的bbox尺寸）
+        # 計算縮放比例（子圖實際畫素 vs 子圖在父圖中的bbox尺寸）
         scale_x = parent_bbox.width / local_image_size[0]
         scale_y = parent_bbox.height / local_image_size[1]
         
-        # 先缩放到父图bbox的尺寸
+        # 先縮放到父圖bbox的尺寸
         scaled_bbox = local_bbox.scale(scale_x, scale_y)
         
-        # 再平移到父图bbox的位置
+        # 再平移到父圖bbox的位置
         global_bbox = scaled_bbox.translate(parent_bbox.x0, parent_bbox.y0)
         
         return global_bbox
@@ -47,21 +47,21 @@ class CoordinateMapper:
         parent_image_size: Tuple[int, int]
     ) -> BBox:
         """
-        将父图的全局坐标转换为子图的局部坐标（逆向映射）
+        將父圖的全域性座標轉換為子圖的區域性座標（逆向對映）
         
         Args:
-            global_bbox: 父图坐标系中的bbox
-            parent_bbox: 子图在父图中的位置
-            local_image_size: 子图尺寸 (width, height)
-            parent_image_size: 父图尺寸 (width, height)
+            global_bbox: 父圖座標系中的bbox
+            parent_bbox: 子圖在父圖中的位置
+            local_image_size: 子圖尺寸 (width, height)
+            parent_image_size: 父圖尺寸 (width, height)
         
         Returns:
-            在子图坐标系中的bbox
+            在子圖座標系中的bbox
         """
-        # 先平移（相对于parent_bbox的原点）
+        # 先平移（相對於parent_bbox的原點）
         translated_bbox = global_bbox.translate(-parent_bbox.x0, -parent_bbox.y0)
         
-        # 再缩放
+        # 再縮放
         scale_x = local_image_size[0] / parent_bbox.width
         scale_y = local_image_size[1] / parent_bbox.height
         

@@ -9,7 +9,7 @@ export const GithubLink: React.FC = () => {
       target="_blank"
       rel="noopener noreferrer"
       className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-gray-200 group"
-      aria-label="查看 GitHub 仓库"
+      aria-label="檢視 GitHub 倉庫"
     >
       <svg
         className="w-6 h-6 text-gray-900 group-hover:text-black transition-colors"

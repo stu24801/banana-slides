@@ -591,7 +591,7 @@ Open source is not easy 🙏 If this project is valuable to you, feel free to bu
 <img width="240" alt="image" src="https://github.com/user-attachments/assets/fd7a286d-711b-445e-aecf-43e3fe356473" />
 
 Thanks to the following friends for their voluntary sponsorship:
-> @雅俗共赏、@曹峥、@以年观日、@John、@胡yun星Ethan, @azazo1、@刘聪NLP、@🍟、@苍何、@biubiu  
+> @雅俗共賞、@曹崢、@以年觀日、@John、@胡yun星Ethan, @azazo1、@劉聰NLP、@🍟、@蒼何、@biubiu  
 > If you have questions about the donation list (e.g., your name is missing), please <a href="mailto:anionex@qq.com">contact the author</a>.
  
 ## 📈 Star History

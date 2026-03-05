@@ -21,7 +21,7 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
   isGenerating = false,
   isAiRefining = false,
 }) => {
-  // 从 description_content 提取文本内容
+  // 從 description_content 提取文字內容
   const getDescriptionText = (descContent: DescriptionContent | undefined): string => {
     if (!descContent) return '';
     if ('text' in descContent) {
@@ -37,18 +37,18 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   
-  // 使用专门的描述生成状态 hook，不受图片生成状态影响
+  // 使用專門的描述生成狀態 hook，不受圖片生成狀態影響
   const generating = useDescriptionGeneratingState(isGenerating, isAiRefining);
 
   const handleEdit = () => {
-    // 在打开编辑对话框时，从当前的 page 获取最新值
+    // 在開啟編輯對話方塊時，從當前的 page 獲取最新值
     const currentText = getDescriptionText(page.description_content);
     setEditContent(currentText);
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    // 保存时使用 text 格式（后端期望的格式）
+    // 儲存時使用 text 格式（後端期望的格式）
     onUpdate({
       description_content: {
         text: editContent,
@@ -60,11 +60,11 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
   return (
     <>
       <Card className="p-0 overflow-hidden flex flex-col">
-        {/* 标题栏 */}
+        {/* 標題欄 */}
         <div className="bg-banana-50 px-4 py-3 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-900">第 {index + 1} 页</span>
+              <span className="font-semibold text-gray-900">第 {index + 1} 頁</span>
               {page.part && (
                 <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
                   {page.part}
@@ -75,7 +75,7 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
           </div>
         </div>
 
-        {/* 内容 */}
+        {/* 內容 */}
         <div className="p-4 flex-1">
           {generating ? (
             <div className="space-y-2">
@@ -98,7 +98,7 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
           )}
         </div>
 
-        {/* 操作栏 */}
+        {/* 操作欄 */}
         <div className="border-t border-gray-100 px-4 py-3 flex justify-end gap-2 mt-auto">
           <Button
             variant="ghost"
@@ -107,7 +107,7 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
             onClick={handleEdit}
             disabled={generating}
           >
-            编辑
+            編輯
           </Button>
           <Button
             variant="ghost"
@@ -121,16 +121,16 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
         </div>
       </Card>
 
-      {/* 编辑对话框 */}
+      {/* 編輯對話方塊 */}
       <Modal
         isOpen={isEditing}
         onClose={() => setIsEditing(false)}
-        title="编辑页面描述"
+        title="編輯頁面描述"
         size="lg"
       >
         <div className="space-y-4">
           <Textarea
-            label="描述内容"
+            label="描述內容"
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             rows={12}
@@ -140,7 +140,7 @@ export const DescriptionCard: React.FC<DescriptionCardProps> = ({
               取消
             </Button>
             <Button variant="primary" onClick={handleSave}>
-              保存
+              儲存
             </Button>
           </div>
         </div>

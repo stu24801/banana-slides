@@ -11,14 +11,14 @@ logger = logging.getLogger(__name__)
 
 def convert_mineru_path_to_local(mineru_path: str, project_root: Optional[Path] = None) -> Optional[Path]:
     """
-    将 /files/mineru/{extract_id}/{rel_path} 格式的路径转换为本地文件系统路径
+    將 /files/mineru/{extract_id}/{rel_path} 格式的路徑轉換為本地檔案系統路徑
     
     Args:
-        mineru_path: MinerU URL 路径，格式为 /files/mineru/{extract_id}/{rel_path}
-        project_root: 项目根目录路径（如果为 None，则自动计算）
+        mineru_path: MinerU URL 路徑，格式為 /files/mineru/{extract_id}/{rel_path}
+        project_root: 專案根目錄路徑（如果為 None，則自動計算）
         
     Returns:
-        本地文件系统路径（Path 对象），如果转换失败则返回 None
+        本地檔案系統路徑（Path 物件），如果轉換失敗則返回 None
     """
     try:
         if not mineru_path.startswith('/files/mineru/'):
@@ -45,18 +45,18 @@ def convert_mineru_path_to_local(mineru_path: str, project_root: Optional[Path] 
 
 def find_mineru_file_with_prefix(mineru_path: str, project_root: Optional[Path] = None) -> Optional[Path]:
     """
-    查找 MinerU 文件，支持前缀匹配
+    查詢 MinerU 檔案，支援字首匹配
     
-    首先尝试直接路径匹配，如果失败则尝试前缀匹配。
-    前缀匹配逻辑：如果文件名看起来像是一个前缀+扩展名（前缀长度 >= 5），
-    则在目录中查找以该前缀开头的文件。
+    首先嚐試直接路徑匹配，如果失敗則嘗試字首匹配。
+    字首匹配邏輯：如果檔名看起來像是一個字首+副檔名（字首長度 >= 5），
+    則在目錄中查詢以該字首開頭的檔案。
     
     Args:
-        mineru_path: MinerU URL 路径，格式为 /files/mineru/{extract_id}/{rel_path}
-        project_root: 项目根目录路径（如果为 None，则自动计算）
+        mineru_path: MinerU URL 路徑，格式為 /files/mineru/{extract_id}/{rel_path}
+        project_root: 專案根目錄路徑（如果為 None，則自動計算）
         
     Returns:
-        找到的文件路径（Path 对象），如果未找到则返回 None
+        找到的檔案路徑（Path 物件），如果未找到則返回 None
     """
     # First try direct path conversion
     local_path = convert_mineru_path_to_local(mineru_path, project_root)
@@ -74,17 +74,17 @@ def find_mineru_file_with_prefix(mineru_path: str, project_root: Optional[Path] 
 
 def find_file_with_prefix(file_path: Path) -> Optional[Path]:
     """
-    查找文件，支持前缀匹配
+    查詢檔案，支援字首匹配
     
-    首先检查文件是否存在，如果不存在则尝试前缀匹配。
-    前缀匹配逻辑：如果文件名看起来像是一个前缀+扩展名（前缀长度 >= 5），
-    则在目录中查找以该前缀开头的文件。
+    首先檢查檔案是否存在，如果不存在則嘗試字首匹配。
+    字首匹配邏輯：如果檔名看起來像是一個字首+副檔名（字首長度 >= 5），
+    則在目錄中查詢以該字首開頭的檔案。
     
     Args:
-        file_path: 要查找的文件路径（Path 对象）
+        file_path: 要查詢的檔案路徑（Path 物件）
         
     Returns:
-        找到的文件路径（Path 对象），如果未找到则返回 None
+        找到的檔案路徑（Path 物件），如果未找到則返回 None
     """
     # Direct file matching
     if file_path.exists() and file_path.is_file():

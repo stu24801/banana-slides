@@ -14,21 +14,21 @@ class Project(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     idea_prompt = db.Column(db.Text, nullable=True)
-    outline_text = db.Column(db.Text, nullable=True)  # 用户输入的大纲文本（用于outline类型）
-    description_text = db.Column(db.Text, nullable=True)  # 用户输入的描述文本（用于description类型）
-    extra_requirements = db.Column(db.Text, nullable=True)  # 额外要求，应用到每个页面的AI提示词
+    outline_text = db.Column(db.Text, nullable=True)  # 使用者輸入的大綱文字（用於outline型別）
+    description_text = db.Column(db.Text, nullable=True)  # 使用者輸入的描述文字（用於description型別）
+    extra_requirements = db.Column(db.Text, nullable=True)  # 額外要求，應用到每個頁面的AI提示詞
     creation_type = db.Column(db.String(20), nullable=False, default='idea')  # idea|outline|descriptions
     template_image_path = db.Column(db.String(500), nullable=True)
-    template_style = db.Column(db.Text, nullable=True)  # 风格描述文本（无模板图模式）
-    # 导出设置
-    export_extractor_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 组件提取方法: mineru, hybrid
-    export_inpaint_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 背景图获取方法: generative, baidu, hybrid
+    template_style = db.Column(db.Text, nullable=True)  # 風格描述文字（無模板圖模式）
+    # 匯出設定
+    export_extractor_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 元件提取方法: mineru, hybrid
+    export_inpaint_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 背景圖獲取方法: generative, baidu, hybrid
     status = db.Column(db.String(50), nullable=False, default='DRAFT')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    # 使用 'select' 策略支持 eager loading，同时保持灵活性
+    # 使用 'select' 策略支援 eager loading，同時保持靈活性
     pages = db.relationship('Page', back_populates='project', lazy='select', 
                            cascade='all, delete-orphan', order_by='Page.order_index')
     tasks = db.relationship('Task', back_populates='project', lazy='select',
@@ -64,7 +64,7 @@ class Project(db.Model):
         }
         
         if include_pages:
-            # pages 现在是列表，不需要 order_by（已在 relationship 中定义）
+            # pages 現在是列表，不需要 order_by（已在 relationship 中定義）
             data['pages'] = [page.to_dict() for page in self.pages]
         
         return data

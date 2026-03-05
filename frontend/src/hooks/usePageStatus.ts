@@ -1,12 +1,12 @@
 import type { Page, PageStatus } from '@/types';
 
 /**
- * 页面状态类型
+ * 頁面狀態型別
  */
 export type PageStatusContext = 'description' | 'image' | 'full';
 
 /**
- * 派生的页面状态
+ * 派生的頁面狀態
  */
 export interface DerivedPageStatus {
   status: PageStatus;
@@ -15,11 +15,11 @@ export interface DerivedPageStatus {
 }
 
 /**
- * 根据上下文获取页面的派生状态
+ * 根據上下文獲取頁面的派生狀態
  * 
- * @param page - 页面对象
+ * @param page - 頁面物件
  * @param context - 上下文：'description' | 'image' | 'full'
- * @returns 派生的状态信息
+ * @returns 派生的狀態資訊
  */
 export const usePageStatus = (
   page: Page,
@@ -31,12 +31,12 @@ export const usePageStatus = (
 
   switch (context) {
     case 'description':
-      // 描述页面上下文：只关心描述是否生成
+      // 描述頁面上下文：只關心描述是否生成
       if (!hasDescription) {
         return {
           status: 'DRAFT',
           label: '未生成描述',
-          description: '还没有生成描述'
+          description: '還沒有生成描述'
         };
       }
       return {
@@ -46,7 +46,7 @@ export const usePageStatus = (
       };
 
     case 'image':
-      // 图片页面上下文：关心图片生成状态
+      // 圖片頁面上下文：關心圖片生成狀態
       if (!hasDescription) {
         return {
           status: 'DRAFT',
@@ -57,41 +57,41 @@ export const usePageStatus = (
       if (!hasImage && pageStatus !== 'GENERATING') {
         return {
           status: 'DESCRIPTION_GENERATED',
-          label: '未生成图片',
-          description: '描述已生成，等待生成图片'
+          label: '未生成圖片',
+          description: '描述已生成，等待生成圖片'
         };
       }
       if (pageStatus === 'GENERATING') {
         return {
           status: 'GENERATING',
           label: '生成中',
-          description: '正在生成图片'
+          description: '正在生成圖片'
         };
       }
       if (pageStatus === 'FAILED') {
         return {
           status: 'FAILED',
-          label: '失败',
-          description: '图片生成失败'
+          label: '失敗',
+          description: '圖片生成失敗'
         };
       }
       if (hasImage) {
         return {
           status: 'COMPLETED',
           label: '已完成',
-          description: '图片已生成'
+          description: '圖片已生成'
         };
       }
-      // 默认返回页面状态
+      // 預設返回頁面狀態
       return {
         status: pageStatus,
         label: '未知',
-        description: '状态未知'
+        description: '狀態未知'
       };
 
     case 'full':
     default:
-      // 完整上下文：显示页面的实际状态
+      // 完整上下文：顯示頁面的實際狀態
       return {
         status: pageStatus,
         label: getStatusLabel(pageStatus),
@@ -101,7 +101,7 @@ export const usePageStatus = (
 };
 
 /**
- * 获取状态标签
+ * 獲取狀態標籤
  */
 function getStatusLabel(status: PageStatus): string {
   const labels: Record<PageStatus, string> = {
@@ -109,24 +109,24 @@ function getStatusLabel(status: PageStatus): string {
     DESCRIPTION_GENERATED: '已生成描述',
     GENERATING: '生成中',
     COMPLETED: '已完成',
-    FAILED: '失败',
+    FAILED: '失敗',
   };
   return labels[status] || '未知';
 }
 
 /**
- * 获取状态描述
+ * 獲取狀態描述
  */
 function getStatusDescription(
   status: PageStatus,
   _hasDescription: boolean,
   _hasImage: boolean
 ): string {
-  if (status === 'DRAFT') return '草稿阶段';
+  if (status === 'DRAFT') return '草稿階段';
   if (status === 'DESCRIPTION_GENERATED') return '描述已生成';
   if (status === 'GENERATING') return '正在生成中';
-  if (status === 'FAILED') return '生成失败';
+  if (status === 'FAILED') return '生成失敗';
   if (status === 'COMPLETED') return '全部完成';
-  return '状态未知';
+  return '狀態未知';
 }
 
