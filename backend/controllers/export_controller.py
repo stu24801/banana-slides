@@ -67,10 +67,19 @@ def export_pptx(project_id):
             else:
                 image_for_export = file_service.get_absolute_path(page.generated_image_path)
             outline = page.get_outline_content() or {}
+            # text_regions：vision 偵測的真實 bbox，供精準文字框定位
+            text_regions = None
+            if page.text_regions:
+                try:
+                    import json as _json
+                    text_regions = _json.loads(page.text_regions)
+                except Exception:
+                    pass
             pages_data.append({
                 'image_path': image_for_export,
                 'title': outline.get('title', ''),
                 'points': outline.get('points', []),
+                'text_regions': text_regions,
             })
 
         if not pages_data:

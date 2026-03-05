@@ -4,6 +4,10 @@ No need for Celery or Redis, uses in-memory task tracking
 """
 import logging
 import threading
+import os
+import base64
+import json
+import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Dict, Any
 from datetime import datetime
@@ -13,6 +17,98 @@ from utils import get_filtered_pages
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def detect_text_regions(image_path: str, api_base: str, api_key: str, model: str = "gpt-4o") -> list:
+    """
+    使用 vision API 分析投影片圖，偵測每個文字區塊的 bounding box。
+    返回格式：[{"text": str, "x0": float, "y0": float, "x1": float, "y1": float, "type": str}, ...]
+    座標為 0~1 之間的比例值（相對圖片寬高）。
+    type 可為 "title" / "bullet" / "label" / "other"
+    """
+    try:
+        with open(image_path, 'rb') as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+
+        prompt = """Analyze this presentation slide image. Identify ALL visible text regions.
+For each text region, return a JSON array with objects containing:
+- "text": the exact text content
+- "x0": left edge (0.0 to 1.0, relative to image width)
+- "y0": top edge (0.0 to 1.0, relative to image height)  
+- "x1": right edge (0.0 to 1.0, relative to image width)
+- "y1": bottom edge (0.0 to 1.0, relative to image height)
+- "type": one of "title", "bullet", "label", "other"
+
+Rules:
+- Title: the main heading, usually large font at top
+- Bullet: body text, list items, paragraph text
+- Label: small captions, footnotes, decorative text
+- Other: anything else
+
+Return ONLY a valid JSON array, no explanation. Example:
+[{"text": "Main Title", "x0": 0.05, "y0": 0.05, "x1": 0.90, "y1": 0.20, "type": "title"},
+ {"text": "• First point", "x0": 0.05, "y0": 0.30, "x1": 0.85, "y1": 0.42, "type": "bullet"}]
+
+If there are no text regions, return [].
+"""
+
+        payload = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                ]
+            }],
+            "max_tokens": 2000
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        base = api_base.rstrip('/')
+        resp = requests.post(f"{base}/chat/completions", json=payload, headers=headers, timeout=60)
+        resp.raise_for_status()
+
+        content = resp.json()['choices'][0]['message']['content']
+
+        # 清理 markdown code block
+        content = content.strip()
+        if content.startswith('```'):
+            content = content.split('```')[1]
+            if content.startswith('json'):
+                content = content[4:]
+            content = content.strip()
+
+        regions = json.loads(content)
+        if not isinstance(regions, list):
+            return []
+
+        # 驗證並夾緊座標
+        valid = []
+        for r in regions:
+            if not isinstance(r, dict):
+                continue
+            try:
+                valid.append({
+                    "text": str(r.get("text", "")),
+                    "x0": max(0.0, min(1.0, float(r.get("x0", 0)))),
+                    "y0": max(0.0, min(1.0, float(r.get("y0", 0)))),
+                    "x1": max(0.0, min(1.0, float(r.get("x1", 1)))),
+                    "y1": max(0.0, min(1.0, float(r.get("y1", 1)))),
+                    "type": r.get("type", "other"),
+                })
+            except (TypeError, ValueError):
+                continue
+
+        return valid
+
+    except Exception as e:
+        logger.warning(f"detect_text_regions failed: {e}")
+        return []
 
 
 class TaskManager:
@@ -446,6 +542,27 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                                 logger.warning(f"Background image generation returned None for page {page_index}")
                         except Exception as bg_err:
                             logger.warning(f"Background image generation failed (non-critical): {bg_err}")
+
+                        # ── Vision 分析：偵測文字區塊 bbox（供 PPTX 匯出用）──────────
+                        try:
+                            from config import get_config
+                            cfg = get_config()
+                            _api_base = getattr(cfg, 'OPENAI_API_BASE', None) or os.environ.get('OPENAI_API_BASE', '')
+                            _api_key = getattr(cfg, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY', '')
+                            if _api_base and _api_key:
+                                _analyze_path = bg_abs_path if ('bg_abs_path' in dir() and os.path.exists(bg_abs_path)) else file_service.get_absolute_path(image_path)
+                                logger.info(f"🔍 Detecting text regions for page {page_index}...")
+                                regions = detect_text_regions(_analyze_path, _api_base, _api_key)
+                                if regions:
+                                    _p2 = Page.query.get(page_id)
+                                    if _p2:
+                                        _p2.text_regions = json.dumps(regions, ensure_ascii=False)
+                                        db.session.commit()
+                                    logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
+                                else:
+                                    logger.warning(f"No text regions detected for page {page_index}")
+                        except Exception as vis_err:
+                            logger.warning(f"Text region detection failed (non-critical): {vis_err}")
                         # ────────────────────────────────────────────────────────────
 
                         return (page_id, image_path, None)

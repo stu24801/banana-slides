@@ -141,24 +141,36 @@ class ExportService:
     ):
         """
         建立帶有可編輯文字覆蓋層的 PPTX。
-        每頁結構：底層=投影片圖片，上層=透明可編輯文字框（標題 + bullet points）。
+        
+        每頁結構：
+          底層 = 無文字背景圖（或原圖）
+          上層 = 透明可編輯文字框，位置精準對齊圖片中每個文字區塊
+        
+        文字位置來源（優先順序）：
+          1. page['text_regions'] — vision 偵測到的真實 bbox（0~1 比例座標）
+          2. 降級：page['title'] 放頂部，page['points'] 放中下區域
         
         Args:
-            pages_data: 每頁資料，格式為：
-                [{"image_path": str, "title": str, "points": [str, ...]}, ...]
-            output_file: 輸出路徑（若為 None 則回傳 bytes）
-        
-        Returns:
-            若 output_file 為 None，回傳 PPTX bytes；否則存檔並回傳 None
+            pages_data: 每頁資料：
+                [{
+                  "image_path": str,
+                  "title": str,
+                  "points": [str, ...],
+                  "text_regions": [  ← 可選，vision 偵測結果
+                    {"text": str, "x0": float, "y0": float, "x1": float, "y1": float, "type": str},
+                    ...
+                  ]
+                }, ...]
+            output_file: 輸出路徑（None → 回傳 bytes）
         """
         from pptx.util import Inches, Pt, Emu
         from pptx.dml.color import RGBColor
         from pptx.enum.text import PP_ALIGN
-        from pptx.oxml.ns import qn
-        from lxml import etree
 
-        SLIDE_W = Inches(10)
-        SLIDE_H = Inches(5.625)
+        SLIDE_W_IN = 10.0
+        SLIDE_H_IN = 5.625
+        SLIDE_W = Inches(SLIDE_W_IN)
+        SLIDE_H = Inches(SLIDE_H_IN)
 
         prs = Presentation()
         try:
@@ -175,30 +187,25 @@ class ExportService:
         prs.slide_height = SLIDE_H
 
         def _set_transparent(shape):
-            """將 shape 填充設為完全透明，框線設為無"""
-            fill = shape.fill
-            fill.background()  # 透明背景
-            ln = shape.line
-            ln.fill.background()  # 無框線
+            shape.fill.background()
+            shape.line.fill.background()
 
-        def _add_text_box(slide, left_in, top_in, w_in, h_in,
-                          text, font_size_pt, bold=False,
-                          color_rgb=(255, 255, 255),
-                          align=PP_ALIGN.LEFT):
-            """新增透明文字框"""
-            from pptx.util import Inches, Pt
+        def _add_text_box_inches(slide, left, top, width, height,
+                                  text, font_size_pt, bold=False,
+                                  color_rgb=(255, 255, 255),
+                                  align=PP_ALIGN.LEFT):
+            """新增透明文字框，座標單位為 inch"""
             tb = slide.shapes.add_textbox(
-                Inches(left_in), Inches(top_in),
-                Inches(w_in), Inches(h_in)
+                Inches(left), Inches(top),
+                Inches(width), Inches(height)
             )
             _set_transparent(tb)
             tf = tb.text_frame
             tf.word_wrap = True
-            tf.margin_left = Inches(0)
-            tf.margin_right = Inches(0)
-            tf.margin_top = Inches(0)
-            tf.margin_bottom = Inches(0)
-
+            tf.margin_left = Inches(0.05)
+            tf.margin_right = Inches(0.05)
+            tf.margin_top = Inches(0.02)
+            tf.margin_bottom = Inches(0.02)
             p = tf.paragraphs[0]
             p.alignment = align
             run = p.add_run()
@@ -208,50 +215,81 @@ class ExportService:
             run.font.color.rgb = RGBColor(*color_rgb)
             return tb
 
+        def _region_to_inches(region):
+            """將 0~1 比例 bbox 轉為 inch"""
+            x0 = region['x0'] * SLIDE_W_IN
+            y0 = region['y0'] * SLIDE_H_IN
+            x1 = region['x1'] * SLIDE_W_IN
+            y1 = region['y1'] * SLIDE_H_IN
+            return x0, y0, max(0.3, x1 - x0), max(0.2, y1 - y0)
+
+        def _estimate_font_size(height_in, rtype):
+            """根據區塊高度估算字型大小"""
+            pt = height_in * 72 * 0.65  # 72pt/inch，65% 填充率
+            if rtype == 'title':
+                return max(18, min(48, round(pt)))
+            else:
+                return max(10, min(28, round(pt)))
+
         for page in pages_data:
             image_path = page.get('image_path', '')
             title = page.get('title', '')
             points = page.get('points', [])
+            text_regions = page.get('text_regions')  # vision 偵測結果
 
             blank_layout = prs.slide_layouts[6]
             slide = prs.slides.add_slide(blank_layout)
 
-            # ── 底層：投影片圖片 ────────────────────────────────────────────────
+            # ── 底層：背景圖 ───────────────────────────────────────────────────
             if image_path and os.path.exists(image_path):
                 slide.shapes.add_picture(image_path, 0, 0, SLIDE_W, SLIDE_H)
             else:
                 logger.warning(f"圖片不存在，跳過：{image_path}")
 
-            # ── 上層：可編輯文字框（透明） ─────────────────────────────────────
-            # 標題框：左上角，佔整頁寬，高度約 1.1 吋
-            if title:
-                _add_text_box(
-                    slide,
-                    left_in=0.3, top_in=0.2,
-                    w_in=9.4, h_in=1.1,
-                    text=title,
-                    font_size_pt=32,
-                    bold=True,
-                    color_rgb=(255, 255, 255),
-                    align=PP_ALIGN.LEFT
-                )
+            # ── 上層：精準文字框 ───────────────────────────────────────────────
+            if text_regions:
+                # ✅ 模式 A：使用 vision 偵測的真實 bbox
+                for region in text_regions:
+                    rtype = region.get('type', 'other')
+                    rtext = region.get('text', '').strip()
+                    if not rtext:
+                        continue
 
-            # Bullet points 框：標題下方，佔主體區域
-            if points:
-                bullets_text = '\n'.join(
-                    f'• {pt}' if not pt.startswith('•') else pt
-                    for pt in points
-                )
-                _add_text_box(
-                    slide,
-                    left_in=0.4, top_in=1.5,
-                    w_in=9.2, h_in=3.8,
-                    text=bullets_text,
-                    font_size_pt=18,
-                    bold=False,
-                    color_rgb=(255, 255, 255),
-                    align=PP_ALIGN.LEFT
-                )
+                    left, top, w, h = _region_to_inches(region)
+                    font_size = _estimate_font_size(h, rtype)
+                    bold = rtype == 'title'
+                    # 字色白色（主色），label/small 用半透明白
+                    color = (255, 255, 255)
+
+                    _add_text_box_inches(
+                        slide, left, top, w, h,
+                        text=rtext,
+                        font_size_pt=font_size,
+                        bold=bold,
+                        color_rgb=color,
+                        align=PP_ALIGN.LEFT
+                    )
+                    logger.debug(f"Added region [{rtype}] '{rtext[:30]}' at ({left:.2f},{top:.2f})")
+
+            else:
+                # ⚠️ 模式 B：降級 — 用 outline_content 的 title / points，位置固定
+                logger.debug("No text_regions, using fallback title/points layout")
+                if title:
+                    _add_text_box_inches(
+                        slide, 0.3, 0.2, 9.4, 1.1,
+                        text=title, font_size_pt=32, bold=True,
+                        color_rgb=(255, 255, 255), align=PP_ALIGN.LEFT
+                    )
+                if points:
+                    bullets_text = '\n'.join(
+                        f'• {pt}' if not pt.startswith('•') else pt
+                        for pt in points
+                    )
+                    _add_text_box_inches(
+                        slide, 0.4, 1.5, 9.2, 3.8,
+                        text=bullets_text, font_size_pt=18, bold=False,
+                        color_rgb=(255, 255, 255), align=PP_ALIGN.LEFT
+                    )
 
         if output_file:
             prs.save(output_file)
