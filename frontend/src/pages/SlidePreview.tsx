@@ -1100,13 +1100,13 @@ export const SlidePreview: React.FC = () => {
                   onClick={() => handleExport('pptx')}
                   className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-sm"
                 >
-                  匯出為 PPTX
+                  匯出可編輯 PPTX
                 </button>
                 <button
                   onClick={() => handleExport('editable-pptx')}
                   className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-sm"
                 >
-                  匯出可編輯 PPTX（Beta）
+                  匯出為 PPTX（純圖片）
                 </button>
                 <button
                   onClick={() => handleExport('pdf')}

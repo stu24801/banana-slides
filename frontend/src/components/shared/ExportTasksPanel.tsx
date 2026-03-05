@@ -6,9 +6,9 @@ import { Button } from './Button';
 import { cn } from '@/utils';
 
 const taskTypeLabels: Record<ExportTaskType, string> = {
-  'pptx': 'PPTX',
+  'pptx': '可編輯 PPTX',
   'pdf': 'PDF',
-  'editable-pptx': '可編輯 PPTX',
+  'editable-pptx': 'PPTX（純圖片）',
 };
 
 /**
