@@ -13,15 +13,18 @@ export const apiClient = axios.create({
 // 請求攔截器
 apiClient.interceptors.request.use(
   (config) => {
+    // 自動帶入 auth token
+    const token = localStorage.getItem('bs_auth_token');
+    if (token && config.headers) {
+      config.headers['X-Auth-Token'] = token;
+    }
+
     // 如果請求體是 FormData，刪除 Content-Type 讓瀏覽器自動設定
-    // 瀏覽器會自動新增正確的 Content-Type 和 boundary
     if (config.data instanceof FormData) {
-      // 不設定 Content-Type，讓瀏覽器自動處理
       if (config.headers) {
         delete config.headers['Content-Type'];
       }
     } else if (config.headers && !config.headers['Content-Type']) {
-      // 對於非 FormData 請求，預設設定為 JSON
       config.headers['Content-Type'] = 'application/json';
     }
     
@@ -38,15 +41,17 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // 統一錯誤處理
     if (error.response) {
-      // 伺服器返回錯誤狀態碼
+      // 401 → 清除 token 並重新整理（回到登入頁）
+      if (error.response.status === 401) {
+        localStorage.removeItem('bs_auth_token');
+        window.location.reload();
+        return Promise.reject(error);
+      }
       console.error('API Error:', error.response.data);
     } else if (error.request) {
-      // 請求已傳送但沒有收到響應
       console.error('Network Error:', error.request);
     } else {
-      // 其他錯誤
       console.error('Error:', error.message);
     }
     return Promise.reject(error);

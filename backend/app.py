@@ -25,6 +25,7 @@ from controllers.material_controller import material_bp, material_global_bp
 from controllers.reference_file_controller import reference_file_bp
 from controllers.settings_controller import settings_bp
 from controllers import project_bp, page_bp, template_bp, user_template_bp, export_bp, file_bp
+from controllers.auth_controller import auth_bp
 
 
 # Enable SQLite WAL mode for all connections
@@ -109,6 +110,29 @@ def create_app():
     app.register_blueprint(material_global_bp)
     app.register_blueprint(reference_file_bp, url_prefix='/api/reference-files')
     app.register_blueprint(settings_bp)
+    app.register_blueprint(auth_bp)
+
+    # ── Global auth guard ──────────────────────────────────────────────────────
+    from controllers.auth_controller import _get_password, _is_valid_token
+    from flask import request as _req, jsonify as _jsonify
+
+    @app.before_request
+    def _global_auth():
+        # 放行 auth 相關路由 & health check & OPTIONS
+        if _req.method == 'OPTIONS':
+            return
+        if _req.path.startswith('/api/auth/') or _req.path == '/api/health':
+            return
+        # 若未設定密碼，全部放行
+        if not _get_password():
+            return
+        token = (
+            _req.headers.get('X-Auth-Token') or
+            _req.headers.get('Authorization', '').removeprefix('Bearer ').strip() or
+            _req.args.get('token', '')
+        )
+        if not _is_valid_token(token):
+            return _jsonify({'error': '未授權，請先登入', 'code': 'UNAUTHORIZED'}), 401
 
     with app.app_context():
         # Load settings from database and sync to app.config
