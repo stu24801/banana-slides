@@ -384,8 +384,9 @@ def generate_outline(project_id):
             project_context = ProjectContext(project, reference_files_content)
             outline = ai_service.parse_outline_text(project_context, language=language)
         elif project.creation_type == 'descriptions':
-            # 從描述生成：這個型別應該使用專門的端點
-            return bad_request("Use /generate/from-description endpoint for descriptions type")
+            # 從描述生成：自動轉接到 from-description 端點
+            logger.info(f"Project {project_id} is descriptions type, auto-routing to generate_from_description()")
+            return generate_from_description(project_id)
         else:
             # 一句話生成：從idea生成大綱
             idea_prompt = data.get('idea_prompt') or project.idea_prompt

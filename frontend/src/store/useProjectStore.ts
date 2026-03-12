@@ -460,14 +460,21 @@ const debouncedUpdatePage = debounce(
   },
 
   // 生成大綱（同步操作，不需要輪詢）
+  // 根據 creation_type 自動選擇正確的 API 端點
   generateOutline: async () => {
     const { currentProject } = get();
     if (!currentProject) return;
 
     set({ isGlobalLoading: true, error: null });
     try {
-      const response = await api.generateOutline(currentProject.id!);
-      console.log('[生成大綱] API響應:', response);
+      // 根據專案類型選擇正確的 API
+      if (currentProject.creation_type === 'descriptions') {
+        const response = await api.generateFromDescription(currentProject.id!);
+        console.log('[從描述生成大綱] API響應:', response);
+      } else {
+        const response = await api.generateOutline(currentProject.id!);
+        console.log('[生成大綱] API響應:', response);
+      }
       
       // 重新整理專案資料，確保獲取最新的大綱頁面
       await get().syncProject();
