@@ -243,6 +243,90 @@ class ExportService:
             else:
                 return max(11, min(32, round(pt)))
 
+        def _match_outline_to_regions(title, points, text_regions):
+            """
+            配對 outline 內容與 OCR 偵測的 bbox
+            將 OCR 的 bbox 賦予正確的文字與 type
+            """
+            if not text_regions:
+                return []
+                
+            import difflib
+            matched_regions = []
+            available_regions = list(text_regions)
+            
+            def find_best_match(target_text):
+                if not available_regions or not target_text:
+                    return None, -1
+                
+                best_ratio = 0
+                best_idx = -1
+                best_region = None
+                
+                target_clean = str(target_text).replace(" ", "").replace("•", "").replace("·", "").strip()
+                if not target_clean:
+                    return None, -1
+                    
+                for idx, r in enumerate(available_regions):
+                    r_text = str(r.get('text', '')).replace(" ", "").replace("•", "").replace("·", "").strip()
+                    if not r_text: continue
+                    
+                    # 相似度計算
+                    ratio = difflib.SequenceMatcher(None, target_clean, r_text).ratio()
+                    # 如果字串互相包含，給予高分
+                    if target_clean in r_text or r_text in target_clean:
+                        ratio = max(ratio, 0.8)
+                        
+                    if ratio > best_ratio:
+                        best_ratio = ratio
+                        best_idx = idx
+                        best_region = r
+                        
+                if best_ratio > 0.3:  # 容錯率可調整
+                    return best_region, best_idx
+                return None, -1
+
+            # 1. 配對 Title
+            if title:
+                match_r, match_idx = find_best_match(title)
+                if match_r:
+                    matched_regions.append({
+                        **match_r,
+                        'text': title,
+                        'type': 'title',
+                        'color': match_r.get('color', '#1A1A1A')
+                    })
+                    available_regions.pop(match_idx)
+                else:
+                    # 如果沒配對到，給個預設位置
+                    matched_regions.append({
+                        'text': title, 'type': 'title',
+                        'x0': 0.1, 'y0': 0.1, 'x1': 0.9, 'y1': 0.2,
+                        'color': '#1A1A1A'
+                    })
+                    
+            # 2. 配對 Points
+            for pt in points:
+                match_r, match_idx = find_best_match(pt)
+                pt_text = f"• {pt}" if not str(pt).startswith('•') and not str(pt).startswith('·') else pt
+                if match_r:
+                    matched_regions.append({
+                        **match_r,
+                        'text': pt_text,
+                        'type': 'bullet',
+                        'color': match_r.get('color', '#333333')
+                    })
+                    available_regions.pop(match_idx)
+                else:
+                    # 沒配對到，暫時忽略或給預設位置。由於 points 可能很多，不給預設位置避免重疊
+                    pass
+            
+            # 將剩餘未匹配的 OCR 區域也放進來（可選，但為了乾淨 PPTX，我們只放配對成功的）
+            # 但是可能原圖上有其他文字我們沒在 outline 裡，看需求。目前選擇只放配對成功的，
+            # 確保內容完全由 outline 決定。
+            
+            return matched_regions
+
         for page in pages_data:
             image_path = page.get('image_path', '')
             title = page.get('title', '')
@@ -260,38 +344,49 @@ class ExportService:
 
             # ── 上層：精準文字框 ───────────────────────────────────────────────
             if text_regions:
-                # ✅ 模式 A：使用 vision 偵測的真實 bbox
-                for region in text_regions:
-                    rtype = region.get('type', 'other')
-                    rtext = region.get('text', '').strip()
-                    if not rtext:
-                        continue
+                # ✅ 模式 A：使用 OCR bbox 配合 outline 內容
+                matched_regions = _match_outline_to_regions(title, points, text_regions)
+                
+                # 如果完全沒配對到任何東西，回退到 fallback
+                if not matched_regions:
+                    matched_regions = []
+                
+                # 如果有配對結果，繪製匹配成功的區域
+                if matched_regions:
+                    for region in matched_regions:
+                        rtype = region.get('type', 'other')
+                        rtext = region.get('text', '').strip()
+                        if not rtext:
+                            continue
 
-                    left, top, w, h = _region_to_inches(region)
-                    font_size = _estimate_font_size(h, rtype)
-                    bold = rtype == 'title'
+                        left, top, w, h = _region_to_inches(region)
+                        font_size = _estimate_font_size(h, rtype)
+                        bold = (rtype == 'title')
 
-                    # 使用 vision 偵測到的文字顏色
-                    hex_color = region.get('color', '#FFFFFF').lstrip('#')
-                    try:
-                        cr = int(hex_color[0:2], 16)
-                        cg = int(hex_color[2:4], 16)
-                        cb = int(hex_color[4:6], 16)
-                        color = (cr, cg, cb)
-                    except Exception:
-                        color = (255, 255, 255)
+                        # 使用 OCR 偵測到的文字顏色
+                        hex_color = region.get('color', '#FFFFFF').lstrip('#')
+                        try:
+                            cr = int(hex_color[0:2], 16)
+                            cg = int(hex_color[2:4], 16)
+                            cb = int(hex_color[4:6], 16)
+                            color = (cr, cg, cb)
+                        except Exception:
+                            color = (255, 255, 255)
 
-                    _add_text_box_inches(
-                        slide, left, top, w, h,
-                        text=rtext,
-                        font_size_pt=font_size,
-                        bold=bold,
-                        color_rgb=color,
-                        align=PP_ALIGN.LEFT
-                    )
-                    logger.debug(f"Added region [{rtype}] '{rtext[:30]}' at ({left:.2f},{top:.2f})")
+                        _add_text_box_inches(
+                            slide, left, top, w, h,
+                            text=rtext,
+                            font_size_pt=font_size,
+                            bold=bold,
+                            color_rgb=color,
+                            align=PP_ALIGN.LEFT
+                        )
+                        logger.debug(f"Added matched region [{rtype}] '{rtext[:30]}' at ({left:.2f},{top:.2f})")
+                else:
+                    # 如果匹配失敗，回退到模式 B
+                    text_regions = None
 
-            else:
+            if not text_regions:
                 # ⚠️ 模式 B：降級 — 用 outline_content 的 title / points，位置固定
                 logger.debug("No text_regions, using fallback title/points layout")
                 if title:

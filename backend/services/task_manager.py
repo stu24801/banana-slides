@@ -19,6 +19,63 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def detect_text_regions_ocr(image_path: str) -> list:
+    """
+    使用 PaddleOCR 分析投影片圖，偵測每個文字區塊的 bounding box。
+    返回格式：[{"text": str, "x0": float, "y0": float, "x1": float, "y1": float, "type": str, "color": str}]
+    座標為 0~1 之間的比例值（相對圖片寬高）。
+    """
+    try:
+        from paddleocr import PaddleOCR
+        from PIL import Image
+        import numpy as np
+
+        # 初始化 OCR 模型，只載入一次
+        global _ocr_instance
+        if '_ocr_instance' not in globals():
+            logger.info("Initializing PaddleOCR...")
+            _ocr_instance = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
+        
+        logger.info(f"Running OCR on {image_path}")
+        result = _ocr_instance.ocr(image_path, cls=True)
+        
+        if not result or not result[0]:
+            return []
+            
+        with Image.open(image_path) as img:
+            img_width, img_height = img.size
+            
+        valid = []
+        for line in result[0]:
+            # line 格式: [[p1, p2, p3, p4], (text, confidence)]
+            box, (text, conf) = line
+            if conf < 0.6: # 忽略低信心度的結果
+                continue
+                
+            # box 是四個頂點的座標 [[x,y], [x,y], [x,y], [x,y]]
+            x_coords = [p[0] for p in box]
+            y_coords = [p[1] for p in box]
+            
+            x0 = min(x_coords) / img_width
+            y0 = min(y_coords) / img_height
+            x1 = max(x_coords) / img_width
+            y1 = max(y_coords) / img_height
+            
+            valid.append({
+                "text": text,
+                "x0": max(0.0, min(1.0, x0)),
+                "y0": max(0.0, min(1.0, y0)),
+                "x1": max(0.0, min(1.0, x1)),
+                "y1": max(0.0, min(1.0, y1)),
+                "type": "other", # type 可以後續用配對來決定
+                "color": "#FFFFFF", # 先用預設，後續可從原圖採樣
+            })
+            
+        return valid
+    except Exception as e:
+        logger.error(f"detect_text_regions_ocr failed: {e}", exc_info=True)
+        return []
+
 def detect_text_regions(image_path: str, api_base: str, api_key: str, model: str = "gpt-4o") -> list:
     """
     使用 vision API 分析投影片圖，偵測每個文字區塊的 bounding box。
@@ -513,13 +570,19 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         )
 
                         # ── 生成無文字背景圖（供 PPTX 匯出用）─────────────────────
+                        # 使用 edit_image 模式：基於原圖擦除文字，構圖保持一致
                         try:
-                            from services.prompts import get_clean_background_prompt
-                            bg_prompt = get_clean_background_prompt()
-                            logger.info(f"🖼️ Generating text-free background for page {page_index}...")
-                            bg_image = ai_service.generate_image(
-                                bg_prompt,
-                                ref_image_path=file_service.get_absolute_path(image_path),
+                            bg_edit_prompt = (
+                                "Remove ALL text from this presentation slide image. "
+                                "Keep everything else exactly the same: all icons, illustrations, "
+                                "graphics, decorative elements, background gradients, patterns, and layout. "
+                                "Only remove text (titles, bullet points, labels, numbers, captions). "
+                                "Fill the removed text areas with the surrounding background seamlessly."
+                            )
+                            logger.info(f"🖼️ Generating text-free background for page {page_index} (edit_image mode)...")
+                            bg_image = ai_service.edit_image(
+                                prompt=bg_edit_prompt,
+                                current_image_path=file_service.get_absolute_path(image_path),
                                 aspect_ratio=aspect_ratio,
                                 resolution=resolution,
                             )
@@ -547,22 +610,17 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
 
                         # ── Vision 分析：偵測文字區塊 bbox（供 PPTX 匯出用）──────────
                         try:
-                            from config import get_config
-                            cfg = get_config()
-                            _api_base = getattr(cfg, 'OPENAI_API_BASE', None) or os.environ.get('OPENAI_API_BASE', '')
-                            _api_key = getattr(cfg, 'OPENAI_API_KEY', None) or os.environ.get('OPENAI_API_KEY', '')
-                            if _api_base and _api_key:
-                                _analyze_path = bg_abs_path if ('bg_abs_path' in dir() and os.path.exists(bg_abs_path)) else file_service.get_absolute_path(image_path)
-                                logger.info(f"🔍 Detecting text regions for page {page_index}...")
-                                regions = detect_text_regions(_analyze_path, _api_base, _api_key)
-                                if regions:
-                                    _p2 = Page.query.get(page_id)
-                                    if _p2:
-                                        _p2.text_regions = json.dumps(regions, ensure_ascii=False)
-                                        db.session.commit()
-                                    logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
-                                else:
-                                    logger.warning(f"No text regions detected for page {page_index}")
+                            _analyze_path = file_service.get_absolute_path(image_path) # 用原圖（含文字）來辨識
+                            logger.info(f"🔍 Detecting text regions with OCR for page {page_index}...")
+                            regions = detect_text_regions_ocr(_analyze_path)
+                            if regions:
+                                _p2 = Page.query.get(page_id)
+                                if _p2:
+                                    _p2.text_regions = json.dumps(regions, ensure_ascii=False)
+                                    db.session.commit()
+                                logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
+                            else:
+                                logger.warning(f"No text regions detected for page {page_index}")
                         except Exception as vis_err:
                             logger.warning(f"Text region detection failed (non-critical): {vis_err}")
                         # ────────────────────────────────────────────────────────────
