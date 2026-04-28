@@ -493,7 +493,7 @@ export const Home: React.FC = () => {
             <div className="flex items-center">
               <img
                 src="/logo.png"
-                alt="生成 Banana Slides Logo"
+                alt="Slides Logo"
                 className="h-10 md:h-12 w-auto rounded-lg object-contain"
               />
             </div>
@@ -594,7 +594,7 @@ export const Home: React.FC = () => {
               backgroundSize: '200% auto',
               animation: 'gradient 3s ease infinite',
             }}>
-              生成 · Banana Slides
+              生成 · Slides
             </span>
           </h1>
           

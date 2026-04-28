@@ -24,6 +24,7 @@ interface FieldConfig {
 }
 
 interface SectionConfig {
+  hidden?: boolean;
   title: string;
   icon: React.ReactNode;
   fields: FieldConfig[];
@@ -63,6 +64,7 @@ const initialFormData = {
 // 配置驅動的表單區塊定義
 const settingsSections: SectionConfig[] = [
   {
+    hidden: true,
     title: '大模型 API 配置',
     icon: <Key size={20} />,
     fields: [
@@ -95,6 +97,7 @@ const settingsSections: SectionConfig[] = [
     ],
   },
   {
+    hidden: true,
     title: '模型配置',
     icon: <FileText size={20} />,
     fields: [
@@ -624,7 +627,7 @@ export const Settings: React.FC = () => {
       <div className="space-y-8">
         {/* 配置區塊（配置驅動） */}
         <div className="space-y-8">
-          {settingsSections.map((section) => (
+          {settingsSections.filter(s => !s.hidden).map((section) => (
             <div key={section.title}>
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 {section.icon}
