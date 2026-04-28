@@ -576,6 +576,140 @@ def edit_page_image(project_id, page_id):
                     shutil.rmtree(temp_dir)
                 raise e
         
+        # Check for brush mask inpaint mode
+        current_app.logger.info(f"[inpaint] content_type={request.content_type} is_json={request.is_json} form_keys={list(request.form.keys())} files={list(request.files.keys())}")
+        use_inpaint = str(data.get('use_inpaint', 'false')).lower() == 'true'
+        current_app.logger.info(f"[inpaint] use_inpaint={use_inpaint}")
+        bbox_raw = data.get('bbox', None)
+        bbox = None
+        if bbox_raw:
+            if isinstance(bbox_raw, str):
+                try:
+                    bbox = json.loads(bbox_raw)
+                except Exception:
+                    bbox = None
+            elif isinstance(bbox_raw, dict):
+                bbox = bbox_raw
+        mask_file = request.files.get('mask_image') if not request.is_json else None
+
+        if use_inpaint and (mask_file or bbox) and page.generated_image_path:
+            # Save mask to temp file for async task
+            import os as _os, io as _io, base64 as _b64, tempfile as _tmp
+            from PIL import Image as _PILImage
+
+            current_abs = file_service.get_absolute_path(page.generated_image_path)
+            orig_img = _PILImage.open(current_abs).convert("RGBA")
+            iw, ih = orig_img.size
+
+            if mask_file:
+                mask_img = _PILImage.open(mask_file.stream).convert("RGBA")
+                mask = mask_img.resize((iw, ih), _PILImage.Resampling.LANCZOS)
+            else:
+                bx = max(0, int(bbox.get('x', 0)))
+                by = max(0, int(bbox.get('y', 0)))
+                bw = min(int(bbox.get('width', iw)), iw - bx)
+                bh = min(int(bbox.get('height', ih)), ih - by)
+                mask = _PILImage.new("RGBA", (iw, ih), (255, 255, 255, 255))
+                for px in range(bx, bx + bw):
+                    for py in range(by, by + bh):
+                        mask.putpixel((px, py), (0, 0, 0, 0))
+
+            # Persist mask to temp file so background thread can read it
+            mask_tmp = _tmp.NamedTemporaryFile(suffix='.png', delete=False)
+            mask.save(mask_tmp.name, format='PNG')
+            mask_tmp.close()
+
+            # Create async task
+            task = Task(project_id=project_id, task_type='EDIT_PAGE_IMAGE', status='PENDING')
+            db.session.add(task)
+            db.session.commit()
+
+            app = current_app._get_current_object()
+
+            def inpaint_task(task_id_arg, proj_id, pg_id, prompt, mask_path, orig_path, _app):
+                import httpx as _httpx2, base64 as _b642, io as _io2, os as _os2
+                from PIL import Image as _PILImage2
+                with _app.app_context():
+                    from models import Task as _Task, db as _db, Page as _Page
+                    _task = _Task.query.get(task_id_arg)
+                    if not _task: return
+                    try:
+                        _task.status = 'PROCESSING'
+                        _db.session.commit()
+
+                        # load original + mask
+                        orig = _PILImage2.open(orig_path).convert("RGBA")
+                        img_buf2 = _io2.BytesIO()
+                        orig.save(img_buf2, format='PNG')
+                        img_buf2.seek(0)
+                        mask_buf2 = open(mask_path, 'rb').read()
+
+                        api_base2 = (_os2.environ.get('OPENAI_API_BASE', 'http://host.docker.internal:9000/v1')).rstrip('/')
+                        proxy_token2 = _os2.environ.get('PROXY_TOKEN', 'internal-change-me')
+
+                        _app.logger.info(f"[inpaint_task] calling proxy {api_base2}/images/edits")
+                        files2 = [
+                            ("image", ("original.png", img_buf2, "image/png")),
+                            ("mask", ("mask.png", _io2.BytesIO(mask_buf2), "image/png")),
+                            ("prompt", (None, prompt)),
+                            ("model", (None, "gpt-image-2")),
+                            ("size", (None, "2048x1152")),
+                            ("n", (None, "1")),
+                        ]
+                        with _httpx2.Client(timeout=300) as hc:
+                            resp2 = hc.post(f"{api_base2}/images/edits",
+                                            headers={"Authorization": f"Bearer {proxy_token2}"},
+                                            files=files2)
+                        _app.logger.info(f"[inpaint_task] proxy response: {resp2.status_code}")
+                        resp2.raise_for_status()
+
+                        result_data2 = resp2.json()
+                        b64_str2 = result_data2["data"][0]["b64_json"]
+                        result_img2 = _PILImage2.open(_io2.BytesIO(_b642.b64decode(b64_str2))).convert("RGBA")
+
+                        # Composite: keep original pixels where mask is black, use generated where mask is white
+                        orig2 = _PILImage2.open(orig_path).convert("RGBA")
+                        mask2 = _PILImage2.open(mask_path).convert("L")  # grayscale
+                        # Resize result to orig size if needed
+                        if result_img2.size != orig2.size:
+                            result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
+                        if mask2.size != orig2.size:
+                            mask2 = mask2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
+                        # White(255)=use generated, Black(0)=keep original
+                        final_img = _PILImage2.composite(result_img2, orig2, mask2).convert("RGB")
+                        _app.logger.info(f"[inpaint_task] composited result with original")
+
+                        from services.file_service import FileService as _FS
+                        from services.task_manager import save_image_with_version as _siv
+                        _fs = _FS(_app.config['UPLOAD_FOLDER'])
+                        _pg = _Page.query.get(pg_id)
+                        _siv(final_img, proj_id, pg_id, _fs, page_obj=_pg)
+
+                        _task.status = 'COMPLETED'
+                        _task.result = '{"completed":1,"failed":0,"total":1}'
+                        _db.session.commit()
+                        _app.logger.info(f"[inpaint_task] COMPLETED page {pg_id}")
+                    except Exception as e2:
+                        import traceback as _tb
+                        _app.logger.error(f"[inpaint_task] FAILED: {e2}\n{_tb.format_exc()}")
+                        _task.status = 'FAILED'
+                        _task.error = str(e2)
+                        _db.session.commit()
+                    finally:
+                        try: _os2.unlink(mask_path)
+                        except: pass
+
+            task_manager.submit_task(task.id, inpaint_task,
+                project_id, page_id,
+                data['edit_instruction'], mask_tmp.name,
+                current_abs, app)
+
+            return success_response({
+                'task_id': task.id,
+                'page_id': page_id,
+                'status': 'PENDING'
+            }, status_code=202)
+
         # Create async task for image editing
         task = Task(
             project_id=project_id,

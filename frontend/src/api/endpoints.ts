@@ -260,32 +260,44 @@ export const editPageImage = async (
     useTemplate?: boolean;
     descImageUrls?: string[];
     uploadedFiles?: File[];
+  },
+  inpaintOptions?: {
+    useInpaint: boolean;
+    maskBlob?: Blob; // brush mask PNG
+    bbox?: { x: number; y: number; width: number; height: number };
   }
 ): Promise<ApiResponse> => {
-  // 如果有上傳的檔案，使用 multipart/form-data
-  if (contextImages?.uploadedFiles && contextImages.uploadedFiles.length > 0) {
+  const useInpaint = inpaintOptions?.useInpaint && (inpaintOptions?.maskBlob || inpaintOptions?.bbox);
+  // 如果有上傳的檔案或 inpaint，使用 multipart/form-data
+  if ((contextImages?.uploadedFiles && contextImages.uploadedFiles.length > 0) || useInpaint) {
     const formData = new FormData();
     formData.append('edit_instruction', editPrompt);
-    formData.append('use_template', String(contextImages.useTemplate || false));
-    if (contextImages.descImageUrls && contextImages.descImageUrls.length > 0) {
+    formData.append('use_template', String(contextImages?.useTemplate || false));
+    if (contextImages?.descImageUrls && contextImages.descImageUrls.length > 0) {
       formData.append('desc_image_urls', JSON.stringify(contextImages.descImageUrls));
     }
-    // 新增上傳的檔案
-    contextImages.uploadedFiles.forEach((file) => {
+    contextImages?.uploadedFiles?.forEach((file) => {
       formData.append('context_images', file);
     });
-
+    if (useInpaint) {
+      formData.append('use_inpaint', 'true');
+      if (inpaintOptions?.maskBlob) {
+        formData.append('mask_image', inpaintOptions.maskBlob, 'mask.png');
+      } else if (inpaintOptions?.bbox) {
+        formData.append('bbox', JSON.stringify(inpaintOptions.bbox));
+      }
+    }
     const response = await apiClient.post<ApiResponse>(
       `/api/projects/${projectId}/pages/${pageId}/edit/image`,
       formData
     );
     return response.data;
   } else {
-    // 使用 JSON
     const response = await apiClient.post<ApiResponse>(
       `/api/projects/${projectId}/pages/${pageId}/edit/image`,
       {
         edit_instruction: editPrompt,
+        use_inpaint: false,
         context_images: {
           use_template: contextImages?.useTemplate || false,
           desc_image_urls: contextImages?.descImageUrls || [],

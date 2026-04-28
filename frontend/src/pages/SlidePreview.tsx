@@ -127,6 +127,12 @@ export const SlidePreview: React.FC = () => {
   const [isSelectingRegion, setIsSelectingRegion] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [useInpaintMode, setUseInpaintMode] = useState(false); // 局部精確編輯模式（畫筆）
+  const [inpaintBbox, setInpaintBbox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const brushCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isBrushDrawing, setIsBrushDrawing] = useState(false);
+  const [brushSize, setBrushSize] = useState(30);
+  const [hasBrushStrokes, setHasBrushStrokes] = useState(false);
   const { show, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -463,8 +469,138 @@ export const SlidePreview: React.FC = () => {
     }
   }, [currentProject, selectedIndex, editOutlineTitle, editOutlinePoints, editDescription, updatePageLocal, show]);
 
+
+  // ===== 畫筆 Mask 相關 =====
+  const getBrushPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = brushCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handleBrushMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
+    const canvas = brushCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    setIsBrushDrawing(true);
+    const pos = getBrushPos(e);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    setHasBrushStrokes(true);
+  };
+
+  const handleBrushMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isBrushDrawing) return;
+    e.stopPropagation();
+    const canvas = brushCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pos = getBrushPos(e);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const handleBrushMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
+    setIsBrushDrawing(false);
+  };
+
+  const clearBrushCanvas = () => {
+    const canvas = brushCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasBrushStrokes(false);
+  };
+
+  const getBrushMaskBlob = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const brushCanvas = brushCanvasRef.current;
+      const imgEl = imageRef.current;
+      if (!brushCanvas || !imgEl) return resolve(null);
+
+      // Step 1: extract which pixels were painted on brushCanvas (any non-zero alpha)
+      const bCtx = brushCanvas.getContext('2d');
+      if (!bCtx) return resolve(null);
+      const brushData = bCtx.getImageData(0, 0, brushCanvas.width, brushCanvas.height);
+
+      // Step 2: create mask at natural image size
+      const mw = imgEl.naturalWidth || brushCanvas.width;
+      const mh = imgEl.naturalHeight || brushCanvas.height;
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = mw;
+      maskCanvas.height = mh;
+      const mCtx = maskCanvas.getContext('2d');
+      if (!mCtx) return resolve(null);
+
+      // Fill with BLACK (keep all — gpt-image-2: black=keep, white=edit)
+      mCtx.fillStyle = 'black';
+      mCtx.fillRect(0, 0, mw, mh);
+
+      // Get mask pixel data and mark edit area as WHITE
+      const maskData = mCtx.getImageData(0, 0, mw, mh);
+      const scaleX = mw / brushCanvas.width;
+      const scaleY = mh / brushCanvas.height;
+      let transparentPixels = 0;
+
+      for (let by = 0; by < brushCanvas.height; by++) {
+        for (let bx = 0; bx < brushCanvas.width; bx++) {
+          const bi = (by * brushCanvas.width + bx) * 4;
+          const brushAlpha = brushData.data[bi + 3];
+          if (brushAlpha > 10) {
+            // This pixel was painted — mark corresponding area in mask as transparent
+            const mx1 = Math.floor(bx * scaleX);
+            const my1 = Math.floor(by * scaleY);
+            const mx2 = Math.ceil((bx + 1) * scaleX);
+            const my2 = Math.ceil((by + 1) * scaleY);
+            for (let my = my1; my < my2 && my < mh; my++) {
+              for (let mx = mx1; mx < mx2 && mx < mw; mx++) {
+                const mi = (my * mw + mx) * 4;
+                maskData.data[mi] = 255;
+                maskData.data[mi + 1] = 255;
+                maskData.data[mi + 2] = 255;
+                maskData.data[mi + 3] = 255; // white opaque = edit here
+                transparentPixels++;
+              }
+            }
+          }
+        }
+      }
+      mCtx.putImageData(maskData, 0, 0);
+      maskCanvas.toBlob((blob) => resolve(blob), 'image/png');
+    });
+  };
+
+
+  // Init brush canvas size when inpaint mode activates
+  useEffect(() => {
+    if (!useInpaintMode) return;
+    const tryInit = () => {
+      const canvas = brushCanvasRef.current;
+      const img = imageRef.current;
+      if (!canvas || !img) return;
+      canvas.width = img.clientWidth;
+      canvas.height = img.clientHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'rgba(168,85,247,0.45)';
+      }
+    };
+    tryInit();
+    // retry in case image not yet rendered
+    const t = setTimeout(tryInit, 100);
+    return () => clearTimeout(t);
+  }, [useInpaintMode]);
+
   const handleSubmitEdit = useCallback(async () => {
     if (!currentProject || !editPrompt.trim()) return;
+    console.log('[inpaint] useInpaintMode:', useInpaintMode, 'hasBrushStrokes:', hasBrushStrokes, 'canvas:', brushCanvasRef.current?.width, 'x', brushCanvasRef.current?.height);
     
     const page = currentProject.pages[selectedIndex];
     if (!page.id) return;
@@ -473,16 +609,30 @@ export const SlidePreview: React.FC = () => {
     handleSaveOutlineAndDescription();
 
     // 呼叫後端編輯介面
+    // Resolve inpaint mask blob before calling editPageImage
+    let resolvedInpaintOptions: { useInpaint: boolean; maskBlob?: Blob; bbox?: { x: number; y: number; width: number; height: number } } | undefined = undefined;
+    if (useInpaintMode && hasBrushStrokes) {
+      const blob = await getBrushMaskBlob();
+      console.log('[inpaint] resolved blob size:', blob?.size, 'canvas:', brushCanvasRef.current?.width, 'x', brushCanvasRef.current?.height);
+      if (blob) resolvedInpaintOptions = { useInpaint: true, maskBlob: blob };
+    } else if (useInpaintMode && inpaintBbox) {
+      resolvedInpaintOptions = { useInpaint: true, bbox: inpaintBbox };
+    }
+    console.log('[inpaint] final options:', resolvedInpaintOptions ? 'inpaint' : 'normal');
+    const _projectId = currentProject.project_id || currentProject.id || '';
+    const _pageId = (page as any).page_id || page.id || '';
+    console.log('[inpaint] projectId:', _projectId, '| pageId:', _pageId);
     await editPageImage(
-      page.id,
+      _pageId,
       editPrompt,
       {
         useTemplate: selectedContextImages.useTemplate,
         descImageUrls: selectedContextImages.descImageUrls,
-        uploadedFiles: selectedContextImages.uploadedFiles.length > 0 
-          ? selectedContextImages.uploadedFiles 
+        uploadedFiles: selectedContextImages.uploadedFiles.length > 0
+          ? selectedContextImages.uploadedFiles
           : undefined,
-      }
+      },
+      resolvedInpaintOptions
     );
 
     // 快取當前頁的編輯上下文，便於後續快速重複執行
@@ -1480,23 +1630,59 @@ export const SlidePreview: React.FC = () => {
           >
             {imageUrl && (
               <>
-                {/* 左上角：區域選圖模式開關 */}
+                {/* 左上角：區域選圖 + 局部精確編輯模式開關 */}
+                <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // 切換矩形選擇模式
                     setIsRegionSelectionMode((prev) => !prev);
-                    // 切模式時清空當前選區
                     setSelectionStart(null);
                     setSelectionRect(null);
                     setIsSelectingRegion(false);
                   }}
-                  className="absolute top-2 left-2 z-10 px-2 py-1 rounded bg-white/80 text-[10px] text-gray-700 hover:bg-banana-50 shadow-sm flex items-center gap-1"
+                  className="px-2 py-1 rounded bg-white/80 text-[10px] text-gray-700 hover:bg-banana-50 shadow-sm flex items-center gap-1"
                 >
                   <Sparkles size={12} />
                   <span>{isRegionSelectionMode ? '結束區域選圖' : '區域選圖'}</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = !useInpaintMode;
+                    setUseInpaintMode(next);
+                    if (!next) { clearBrushCanvas(); setInpaintBbox(null); }
+                  }}
+                  title="開啟後用畫筆塗抹要修改的區域，再送出指令"
+                  className={`px-2 py-1 rounded text-[10px] shadow-sm flex items-center gap-1 transition-colors ${
+                    useInpaintMode
+                      ? 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'bg-white/80 text-gray-700 hover:bg-purple-50'
+                  }`}
+                >
+                  <span>🖌️</span>
+                  <span>{useInpaintMode ? '畫筆模式 ON' : '局部精確編輯'}</span>
+                </button>
+                {useInpaintMode && hasBrushStrokes && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); clearBrushCanvas(); }}
+                    className="px-2 py-1 rounded text-[10px] bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
+                  >清除塗抹</button>
+                )}
+                {useInpaintMode && (
+                  <div className="flex items-center gap-1 bg-white/80 rounded px-2 py-1 shadow-sm">
+                    <span className="text-[10px] text-gray-600">筆刷</span>
+                    <input type="range" min="8" max="80" value={brushSize}
+                      onChange={e => setBrushSize(Number(e.target.value))}
+                      className="w-16 h-2 accent-purple-500"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span className="text-[10px] text-gray-500">{brushSize}px</span>
+                  </div>
+                )}
+                </div>
 
                 <img
                   ref={imageRef}
@@ -1506,6 +1692,17 @@ export const SlidePreview: React.FC = () => {
                   draggable={false}
                   crossOrigin="anonymous"
                 />
+                {useInpaintMode && (
+                  <canvas
+                    ref={brushCanvasRef}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ cursor: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${brushSize}" height="${brushSize}" viewBox="0 0 ${brushSize} ${brushSize}"><circle cx="${brushSize/2}" cy="${brushSize/2}" r="${brushSize/2-1}" fill="rgba(168,85,247,0.4)" stroke="purple" stroke-width="1.5"/></svg>') ${brushSize/2} ${brushSize/2}, crosshair` }}
+                    onMouseDown={handleBrushMouseDown}
+                    onMouseMove={handleBrushMouseMove}
+                    onMouseUp={handleBrushMouseUp}
+                    onMouseLeave={handleBrushMouseUp}
+                  />
+                )}
                 {selectionRect && (
                   <div
                     className="absolute border-2 border-banana-500 bg-banana-400/10 pointer-events-none"
