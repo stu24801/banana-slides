@@ -49,6 +49,11 @@ interface ProjectState {
       useTemplate?: boolean;
       descImageUrls?: string[];
       uploadedFiles?: File[];
+    },
+    inpaintOptions?: {
+      useInpaint: boolean;
+      maskBlob?: Blob;
+      bbox?: { x: number; y: number; width: number; height: number };
     }
   ) => Promise<void>;
   
@@ -809,7 +814,7 @@ const debouncedUpdatePage = debounce(
   },
 
   // 編輯頁面圖片（非同步）
-  editPageImage: async (pageId, editPrompt, contextImages) => {
+  editPageImage: async (pageId, editPrompt, contextImages, inpaintOptions?) => {
     const { currentProject, pageGeneratingTasks } = get();
     if (!currentProject) return;
 
@@ -821,7 +826,8 @@ const debouncedUpdatePage = debounce(
 
     set({ error: null });
     try {
-      const response = await api.editPageImage(currentProject.id, pageId, editPrompt, contextImages);
+      const projectId = currentProject.project_id || currentProject.id || '';
+      const response = await api.editPageImage(projectId, pageId, editPrompt, contextImages, inpaintOptions);
       const taskId = response.data?.task_id;
       
       if (taskId) {
