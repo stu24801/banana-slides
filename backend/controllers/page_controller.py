@@ -626,9 +626,15 @@ def edit_page_image(project_id, page_id):
 
             app = current_app._get_current_object()
 
+            def _best_gpt_image_size(w, h):
+                """Pick the gpt-image-2 supported size closest to the original aspect ratio."""
+                SIZES = ["1024x1024", "1536x1024", "1024x1536", "2048x2048"]
+                ratio = w / h
+                return min(SIZES, key=lambda s: abs(int(s.split('x')[0]) / int(s.split('x')[1]) - ratio))
+
             def inpaint_task(task_id_arg, proj_id, pg_id, prompt, mask_path, orig_path, _app):
                 import httpx as _httpx2, base64 as _b642, io as _io2, os as _os2
-                from PIL import Image as _PILImage2
+                from PIL import Image as _PILImage2, ImageFilter as _ImageFilter2
                 with _app.app_context():
                     from models import Task as _Task, db as _db, Page as _Page
                     _task = _Task.query.get(task_id_arg)
@@ -653,7 +659,7 @@ def edit_page_image(project_id, page_id):
                             ("mask", ("mask.png", _io2.BytesIO(mask_buf2), "image/png")),
                             ("prompt", (None, prompt)),
                             ("model", (None, "gpt-image-2")),
-                            ("size", (None, "2048x1152")),
+                            ("size", (None, _best_gpt_image_size(orig.width, orig.height))),
                             ("n", (None, "1")),
                         ]
                         with _httpx2.Client(timeout=300) as hc:
@@ -675,6 +681,8 @@ def edit_page_image(project_id, page_id):
                             result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
                         if mask2.size != orig2.size:
                             mask2 = mask2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
+                        # Feather mask edges for smooth blending (P0 fix)
+                        mask2 = mask2.filter(_ImageFilter2.GaussianBlur(radius=12))
                         # White(255)=use generated, Black(0)=keep original
                         final_img = _PILImage2.composite(result_img2, orig2, mask2).convert("RGB")
                         _app.logger.info(f"[inpaint_task] composited result with original")
