@@ -668,13 +668,29 @@ def edit_page_image(project_id, page_id):
                         api_base2 = (_os2.environ.get('OPENAI_API_BASE', 'http://host.docker.internal:9000/v1')).rstrip('/')
                         proxy_token2 = _os2.environ.get('PROXY_TOKEN', 'internal-change-me')
 
-                        # Enhance prompt to instruct gpt-image-2 to only edit the masked region
-                        enhanced_prompt = (
-                            f"This is a presentation slide image. "
-                            f"Only modify the area indicated by the transparent mask region. "
-                            f"Keep everything outside the mask exactly the same — same background, colors, layout, and style. "
-                            f"In the masked area: {prompt}"
-                        )
+                        # Enhance prompt based on mask coverage
+                        mask_l = _PILImage2.open(mask_path).convert("L")
+                        if mask_l.size != orig.size:
+                            mask_l = mask_l.resize(orig.size, _PILImage2.Resampling.LANCZOS)
+                        import numpy as _np2
+                        mask_arr = _np2.array(mask_l)
+                        mask_ratio = (mask_arr > 128).sum() / mask_arr.size
+                        _app.logger.info(f"[inpaint_task] mask coverage: {mask_ratio:.1%}")
+
+                        if mask_ratio > 0.7:
+                            # Large mask or no specific mask = full-image edit
+                            enhanced_prompt = (
+                                f"This is a presentation slide image. "
+                                f"Edit the entire image according to: {prompt}"
+                            )
+                        else:
+                            # Partial mask = targeted edit only in masked area
+                            enhanced_prompt = (
+                                f"This is a presentation slide image. "
+                                f"Only modify the area indicated by the transparent mask region. "
+                                f"Keep everything outside the mask exactly the same - same background, colors, layout, and style. "
+                                f"In the masked area: {prompt}"
+                            )
 
                         _app.logger.info(f"[inpaint_task] calling proxy {api_base2}/images/edits")
                         files2 = [
