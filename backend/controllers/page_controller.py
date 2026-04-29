@@ -648,7 +648,22 @@ def edit_page_image(project_id, page_id):
                         img_buf2 = _io2.BytesIO()
                         orig.save(img_buf2, format='PNG')
                         img_buf2.seek(0)
-                        mask_buf2 = open(mask_path, 'rb').read()
+
+                        # Convert mask: white(255)=edit -> alpha=0 (transparent) for gpt-image-2
+                        import numpy as _np2
+                        mask_img = _PILImage2.open(mask_path).convert("L")
+                        if mask_img.size != orig.size:
+                            mask_img = mask_img.resize(orig.size, _PILImage2.Resampling.LANCZOS)
+                        # Create RGBA: all black, alpha=255 where keep (dark), alpha=0 where edit (bright)
+                        mask_arr = _np2.array(mask_img)
+                        alpha = _np2.where(mask_arr > 128, 0, 255).astype(_np2.uint8)
+                        rgba_mask = _np2.zeros((*mask_arr.shape, 4), dtype=_np2.uint8)
+                        rgba_mask[:, :, 3] = alpha
+                        mask_png = _PILImage2.fromarray(rgba_mask, 'RGBA')
+                        mask_buf_io = _io2.BytesIO()
+                        mask_png.save(mask_buf_io, format='PNG')
+                        mask_buf_io.seek(0)
+                        mask_buf2 = mask_buf_io.read()
 
                         api_base2 = (_os2.environ.get('OPENAI_API_BASE', 'http://host.docker.internal:9000/v1')).rstrip('/')
                         proxy_token2 = _os2.environ.get('PROXY_TOKEN', 'internal-change-me')
