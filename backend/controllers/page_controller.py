@@ -688,12 +688,19 @@ def edit_page_image(project_id, page_id):
                         b64_str2 = result_data2["data"][0]["b64_json"]
                         result_img2 = _PILImage2.open(_io2.BytesIO(_b642.b64decode(b64_str2))).convert("RGBA")
 
-                        # Use gpt-image-2 edit result directly (no mask composite/cropping)
-                        orig2 = _PILImage2.open(orig_path)
+                        # Composite: only use generated result in masked (edit) area, keep original elsewhere
+                        orig2 = _PILImage2.open(orig_path).convert("RGBA")
+                        # Re-read the original white/black mask as the composite mask
+                        comp_mask = _PILImage2.open(mask_path).convert("L")
                         if result_img2.size != orig2.size:
                             result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        final_img = result_img2.convert("RGB")
-                        _app.logger.info(f"[inpaint_task] using gpt-image-2 edit result directly (no composite)")
+                        if comp_mask.size != orig2.size:
+                            comp_mask = comp_mask.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
+                        # Feather edges for smooth blending
+                        comp_mask = comp_mask.filter(_ImageFilter2.GaussianBlur(radius=12))
+                        # White(255)=use generated, Black(0)=keep original
+                        final_img = _PILImage2.composite(result_img2, orig2, comp_mask).convert("RGB")
+                        _app.logger.info(f"[inpaint_task] composited with feathered mask")
 
                         from services.file_service import FileService as _FS
                         from services.task_manager import save_image_with_version as _siv
