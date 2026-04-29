@@ -80,8 +80,8 @@ docker-compose*.yml
 .env.*.local
 
 # Others
-*.lock
-uv.lock
+# *.lock  <-- 不能排除 uv.lock，backend build 需要它
+# uv.lock
 LICENSE
 PRD.md
 *.md
