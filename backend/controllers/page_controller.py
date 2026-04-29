@@ -673,19 +673,12 @@ def edit_page_image(project_id, page_id):
                         b64_str2 = result_data2["data"][0]["b64_json"]
                         result_img2 = _PILImage2.open(_io2.BytesIO(_b642.b64decode(b64_str2))).convert("RGBA")
 
-                        # Composite: keep original pixels where mask is black, use generated where mask is white
-                        orig2 = _PILImage2.open(orig_path).convert("RGBA")
-                        mask2 = _PILImage2.open(mask_path).convert("L")  # grayscale
-                        # Resize result to orig size if needed
+                        # Use gpt-image-2 edit result directly (no mask composite/cropping)
+                        orig2 = _PILImage2.open(orig_path)
                         if result_img2.size != orig2.size:
                             result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        if mask2.size != orig2.size:
-                            mask2 = mask2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        # Feather mask edges for smooth blending (P0 fix)
-                        mask2 = mask2.filter(_ImageFilter2.GaussianBlur(radius=12))
-                        # White(255)=use generated, Black(0)=keep original
-                        final_img = _PILImage2.composite(result_img2, orig2, mask2).convert("RGB")
-                        _app.logger.info(f"[inpaint_task] composited result with original")
+                        final_img = result_img2.convert("RGB")
+                        _app.logger.info(f"[inpaint_task] using gpt-image-2 edit result directly (no composite)")
 
                         from services.file_service import FileService as _FS
                         from services.task_manager import save_image_with_version as _siv
