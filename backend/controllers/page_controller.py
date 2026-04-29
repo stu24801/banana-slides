@@ -677,14 +677,14 @@ def edit_page_image(project_id, page_id):
                         mask_ratio = (mask_arr > 128).sum() / mask_arr.size
                         _app.logger.info(f"[inpaint_task] mask coverage: {mask_ratio:.1%}")
 
-                        if mask_ratio > 0.7:
-                            # Large mask or no specific mask = full-image edit
+                        if mask_ratio < 0.3:
+                            # Small or no mask = full-image edit
                             enhanced_prompt = (
                                 f"This is a presentation slide image. "
                                 f"Edit the entire image according to: {prompt}"
                             )
                         else:
-                            # Partial mask = targeted edit only in masked area
+                            # Partial/large mask = targeted edit only in masked area
                             enhanced_prompt = (
                                 f"This is a presentation slide image. "
                                 f"Only modify the area indicated by the transparent mask region. "
