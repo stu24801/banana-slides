@@ -715,14 +715,17 @@ def _test_mineru_pdf():
             tmp_file.unlink()
 
 
-# 測試函式對映
+# 測試函式對映（Baidu/MinerU 已停用）
+def _disabled_service(*args, **kwargs):
+    raise Exception("此服務已停用")
+
 TEST_FUNCTIONS = {
-    "baidu-ocr": _test_baidu_ocr,
+    "baidu-ocr": _disabled_service,
     "text-model": _test_text_model,
     "caption-model": _test_caption_model,
-    "baidu-inpaint": _test_baidu_inpaint,
+    "baidu-inpaint": _disabled_service,
     "image-model": _test_image_model,
-    "mineru-pdf": _test_mineru_pdf,
+    "mineru-pdf": _disabled_service,
 }
 
 

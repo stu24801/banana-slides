@@ -493,7 +493,7 @@ export const Home: React.FC = () => {
             <div className="flex items-center">
               <img
                 src="/logo.png"
-                alt="生成 Banana Slides Logo"
+                alt="Slides Logo"
                 className="h-10 md:h-12 w-auto rounded-lg object-contain"
               />
             </div>
@@ -586,7 +586,7 @@ export const Home: React.FC = () => {
         <div className="text-center mb-10 md:mb-16 space-y-4 md:space-y-6">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-banana-200/50 shadow-sm mb-4">
             <span className="text-2xl animate-pulse"><Sparkles size={20} color="orange" /></span>
-            <span className="text-sm font-medium text-gray-700">基於 nano banana pro🍌 的原生 AI PPT 生成器</span>
+            <span className="text-sm font-medium text-gray-700">原生 AI PPT 生成器</span>
           </div>
           
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight">
@@ -594,7 +594,7 @@ export const Home: React.FC = () => {
               backgroundSize: '200% auto',
               animation: 'gradient 3s ease infinite',
             }}>
-              生成 · Banana Slides
+              生成 · Slides
             </span>
           </h1>
           
