@@ -626,9 +626,15 @@ def edit_page_image(project_id, page_id):
 
             app = current_app._get_current_object()
 
+            def _best_gpt_image_size(w, h):
+                """Pick the gpt-image-2 supported size closest to the original aspect ratio."""
+                SIZES = ["1024x1024", "1536x1024", "1024x1536", "2048x2048"]
+                ratio = w / h
+                return min(SIZES, key=lambda s: abs(int(s.split('x')[0]) / int(s.split('x')[1]) - ratio))
+
             def inpaint_task(task_id_arg, proj_id, pg_id, prompt, mask_path, orig_path, _app):
                 import httpx as _httpx2, base64 as _b642, io as _io2, os as _os2
-                from PIL import Image as _PILImage2
+                from PIL import Image as _PILImage2, ImageFilter as _ImageFilter2
                 with _app.app_context():
                     from models import Task as _Task, db as _db, Page as _Page
                     _task = _Task.query.get(task_id_arg)
@@ -642,18 +648,57 @@ def edit_page_image(project_id, page_id):
                         img_buf2 = _io2.BytesIO()
                         orig.save(img_buf2, format='PNG')
                         img_buf2.seek(0)
-                        mask_buf2 = open(mask_path, 'rb').read()
+
+                        # Convert mask: white(255)=edit -> alpha=0 (transparent) for gpt-image-2
+                        import numpy as _np2
+                        mask_img = _PILImage2.open(mask_path).convert("L")
+                        if mask_img.size != orig.size:
+                            mask_img = mask_img.resize(orig.size, _PILImage2.Resampling.LANCZOS)
+                        # Create RGBA: all black, alpha=255 where keep (dark), alpha=0 where edit (bright)
+                        mask_arr = _np2.array(mask_img)
+                        alpha = _np2.where(mask_arr > 128, 0, 255).astype(_np2.uint8)
+                        rgba_mask = _np2.zeros((*mask_arr.shape, 4), dtype=_np2.uint8)
+                        rgba_mask[:, :, 3] = alpha
+                        mask_png = _PILImage2.fromarray(rgba_mask, 'RGBA')
+                        mask_buf_io = _io2.BytesIO()
+                        mask_png.save(mask_buf_io, format='PNG')
+                        mask_buf_io.seek(0)
+                        mask_buf2 = mask_buf_io.read()
 
                         api_base2 = (_os2.environ.get('OPENAI_API_BASE', 'http://host.docker.internal:9000/v1')).rstrip('/')
                         proxy_token2 = _os2.environ.get('PROXY_TOKEN', 'internal-change-me')
+
+                        # Enhance prompt based on mask coverage
+                        mask_l = _PILImage2.open(mask_path).convert("L")
+                        if mask_l.size != orig.size:
+                            mask_l = mask_l.resize(orig.size, _PILImage2.Resampling.LANCZOS)
+                        import numpy as _np2
+                        mask_arr = _np2.array(mask_l)
+                        mask_ratio = (mask_arr > 128).sum() / mask_arr.size
+                        _app.logger.info(f"[inpaint_task] mask coverage: {mask_ratio:.1%}")
+
+                        if mask_ratio == 0:
+                            # No mask at all = full-image edit
+                            enhanced_prompt = (
+                                f"This is a presentation slide image. "
+                                f"Edit the entire image according to: {prompt}"
+                            )
+                        else:
+                            # Partial/large mask = targeted edit only in masked area
+                            enhanced_prompt = (
+                                f"This is a presentation slide image. "
+                                f"Only modify the area indicated by the transparent mask region. "
+                                f"Keep everything outside the mask exactly the same - same background, colors, layout, and style. "
+                                f"In the masked area: {prompt}"
+                            )
 
                         _app.logger.info(f"[inpaint_task] calling proxy {api_base2}/images/edits")
                         files2 = [
                             ("image", ("original.png", img_buf2, "image/png")),
                             ("mask", ("mask.png", _io2.BytesIO(mask_buf2), "image/png")),
-                            ("prompt", (None, prompt)),
+                            ("prompt", (None, enhanced_prompt)),
                             ("model", (None, "gpt-image-2")),
-                            ("size", (None, "2048x1152")),
+                            ("size", (None, _best_gpt_image_size(orig.width, orig.height))),
                             ("n", (None, "1")),
                         ]
                         with _httpx2.Client(timeout=300) as hc:
@@ -667,17 +712,12 @@ def edit_page_image(project_id, page_id):
                         b64_str2 = result_data2["data"][0]["b64_json"]
                         result_img2 = _PILImage2.open(_io2.BytesIO(_b642.b64decode(b64_str2))).convert("RGBA")
 
-                        # Composite: keep original pixels where mask is black, use generated where mask is white
-                        orig2 = _PILImage2.open(orig_path).convert("RGBA")
-                        mask2 = _PILImage2.open(mask_path).convert("L")  # grayscale
-                        # Resize result to orig size if needed
+                        # Use gpt-image-2 result directly — mask already tells API what to edit
+                        orig2 = _PILImage2.open(orig_path)
                         if result_img2.size != orig2.size:
                             result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        if mask2.size != orig2.size:
-                            mask2 = mask2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        # White(255)=use generated, Black(0)=keep original
-                        final_img = _PILImage2.composite(result_img2, orig2, mask2).convert("RGB")
-                        _app.logger.info(f"[inpaint_task] composited result with original")
+                        final_img = result_img2.convert("RGB")
+                        _app.logger.info(f"[inpaint_task] using gpt-image-2 edit result directly")
 
                         from services.file_service import FileService as _FS
                         from services.task_manager import save_image_with_version as _siv

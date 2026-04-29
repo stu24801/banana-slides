@@ -263,7 +263,10 @@ class BaiduInpaintProvider(InpaintProvider):
             
             # 合併原圖和修復後的圖片，只取bboxes區域的修復結果（不擴充套件，避免影響bbox外的區域）
             mask = create_mask_from_bboxes(image.size, bboxes, expand_pixels=0)
-            return Image.composite(result_image, image, mask.convert('L'))
+            # Feather mask edges for smooth blending
+            from PIL import ImageFilter
+            mask_l = mask.convert('L').filter(ImageFilter.GaussianBlur(radius=12))
+            return Image.composite(result_image, image, mask_l)
         
         except Exception as e:
             logger.error(f"BaiduInpaintProvider處理失敗: {e}", exc_info=True)
