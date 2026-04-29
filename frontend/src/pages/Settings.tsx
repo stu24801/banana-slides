@@ -669,18 +669,12 @@ export const Settings: React.FC = () => {
           </p>
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-gray-700">
-              💡 提示：影象生成和 MinerU 測試可能需要 30-60 秒，請耐心等待。
+              💡 提示：影象生成測試可能需要 30-60 秒，請耐心等待。
             </p>
           </div>
           <div className="space-y-4">
             {[
-              {
-                key: 'baidu-ocr',
-                title: 'Baidu OCR 服務',
-                description: '識別測試圖片文字，驗證 BAIDU_OCR_API_KEY 配置',
-                action: api.testBaiduOcr,
-                formatDetail: (data: any) => (data?.recognized_text ? `識別結果：${data.recognized_text}` : ''),
-              },
+              // baidu-ocr hidden
               {
                 key: 'text-model',
                 title: '文字生成模型',
@@ -695,13 +689,7 @@ export const Settings: React.FC = () => {
                 action: api.testCaptionModel,
                 formatDetail: (data: any) => (data?.caption ? `識別描述：${data.caption}` : ''),
               },
-              {
-                key: 'baidu-inpaint',
-                title: 'Baidu 影象修復',
-                description: '使用測試圖片執行修復，驗證百度 inpaint 服務',
-                action: api.testBaiduInpaint,
-                formatDetail: (data: any) => (data?.image_size ? `輸出尺寸：${data.image_size[0]}x${data.image_size[1]}` : ''),
-              },
+              // baidu-inpaint hidden
               {
                 key: 'image-model',
                 title: '影象生成模型',
@@ -709,13 +697,7 @@ export const Settings: React.FC = () => {
                 action: api.testImageModel,
                 formatDetail: (data: any) => (data?.image_size ? `輸出尺寸：${data.image_size[0]}x${data.image_size[1]}` : ''),
               },
-              {
-                key: 'mineru-pdf',
-                title: 'MinerU 解析 PDF',
-                description: '上傳測試 PDF 並等待解析結果返回（可能需要 30-60 秒）',
-                action: api.testMineruPdf,
-                formatDetail: (data: any) => (data?.content_preview ? `解析預覽：${data.content_preview}` : data?.message || ''),
-              },
+              // mineru-pdf hidden
             ].map((item) => {
               const testState = serviceTestStates[item.key] || { status: 'idle' as TestStatus };
               const isLoadingTest = testState.status === 'loading';

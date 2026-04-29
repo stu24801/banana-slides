@@ -138,8 +138,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             <ul className="text-sm text-gray-600 space-y-1 pl-4">
               <li>• 您的 AI 服務提供商的 API Base 和 API Key</li>
               <li>• 配置文字、影象生成模型(banana pro)和影象描述模型</li>
-              <li>• 若需要檔案解析功能，請配置 MinerU Token</li>
-              <li>• 若需要可編輯匯出功能，請配置MinerU TOKEN 和 Baidu API KEY</li>
+              <li>• 若需要可編輯匯出功能，請確認 API Key 已正確配置</li>
 
             </ul>
           </div>
