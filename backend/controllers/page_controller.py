@@ -668,11 +668,19 @@ def edit_page_image(project_id, page_id):
                         api_base2 = (_os2.environ.get('OPENAI_API_BASE', 'http://host.docker.internal:9000/v1')).rstrip('/')
                         proxy_token2 = _os2.environ.get('PROXY_TOKEN', 'internal-change-me')
 
+                        # Enhance prompt to instruct gpt-image-2 to only edit the masked region
+                        enhanced_prompt = (
+                            f"This is a presentation slide image. "
+                            f"Only modify the area indicated by the transparent mask region. "
+                            f"Keep everything outside the mask exactly the same — same background, colors, layout, and style. "
+                            f"In the masked area: {prompt}"
+                        )
+
                         _app.logger.info(f"[inpaint_task] calling proxy {api_base2}/images/edits")
                         files2 = [
                             ("image", ("original.png", img_buf2, "image/png")),
                             ("mask", ("mask.png", _io2.BytesIO(mask_buf2), "image/png")),
-                            ("prompt", (None, prompt)),
+                            ("prompt", (None, enhanced_prompt)),
                             ("model", (None, "gpt-image-2")),
                             ("size", (None, _best_gpt_image_size(orig.width, orig.height))),
                             ("n", (None, "1")),
@@ -688,19 +696,12 @@ def edit_page_image(project_id, page_id):
                         b64_str2 = result_data2["data"][0]["b64_json"]
                         result_img2 = _PILImage2.open(_io2.BytesIO(_b642.b64decode(b64_str2))).convert("RGBA")
 
-                        # Composite: only use generated result in masked (edit) area, keep original elsewhere
-                        orig2 = _PILImage2.open(orig_path).convert("RGBA")
-                        # Re-read the original white/black mask as the composite mask
-                        comp_mask = _PILImage2.open(mask_path).convert("L")
+                        # Use gpt-image-2 result directly — mask already tells API what to edit
+                        orig2 = _PILImage2.open(orig_path)
                         if result_img2.size != orig2.size:
                             result_img2 = result_img2.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        if comp_mask.size != orig2.size:
-                            comp_mask = comp_mask.resize(orig2.size, _PILImage2.Resampling.LANCZOS)
-                        # Feather edges for smooth blending
-                        comp_mask = comp_mask.filter(_ImageFilter2.GaussianBlur(radius=12))
-                        # White(255)=use generated, Black(0)=keep original
-                        final_img = _PILImage2.composite(result_img2, orig2, comp_mask).convert("RGB")
-                        _app.logger.info(f"[inpaint_task] composited with feathered mask")
+                        final_img = result_img2.convert("RGB")
+                        _app.logger.info(f"[inpaint_task] using gpt-image-2 edit result directly")
 
                         from services.file_service import FileService as _FS
                         from services.task_manager import save_image_with_version as _siv
