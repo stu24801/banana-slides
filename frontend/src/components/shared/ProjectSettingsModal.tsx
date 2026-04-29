@@ -31,35 +31,18 @@ type SettingsTab = 'project' | 'global' | 'export';
 const EXTRACTOR_METHOD_OPTIONS: { value: ExportExtractorMethod; label: string; description: string }[] = [
   { 
     value: 'hybrid', 
-    label: '混合提取（推薦）', 
-    description: 'MinerU版面分析 + 百度高精度OCR，文字識別更精確' 
-  },
-  { 
-    value: 'mineru', 
-    label: 'MinerU提取', 
-    description: '僅使用MinerU進行版面分析和文字識別' 
+    label: '智慧提取（推薦）', 
+    description: '自動版面分析與文字識別' 
   },
 ];
 
 // 背景圖獲取方法選項
 const INPAINT_METHOD_OPTIONS: { value: ExportInpaintMethod; label: string; description: string; usesAI: boolean }[] = [
   { 
-    value: 'hybrid', 
-    label: '混合方式獲取（推薦）', 
-    description: '百度精確去除文字 + 生成式模型提升畫質',
-    usesAI: true 
-  },
-  { 
     value: 'generative', 
-    label: '生成式獲取', 
-    description: '使用生成式大模型（如Gemini）直接生成背景，背景質量高但有遺留元素的可能',
+    label: '生成式獲取（推薦）', 
+    description: '使用生成式 AI 模型直接生成背景，畫質高',
     usesAI: true 
-  },
-  { 
-    value: 'baidu', 
-    label: '百度抹除服務獲取', 
-    description: '使用百度影象修復API，速度快但畫質一般',
-    usesAI: false 
   },
 ];
 
