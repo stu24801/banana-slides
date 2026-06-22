@@ -20,6 +20,8 @@ class Project(db.Model):
     creation_type = db.Column(db.String(20), nullable=False, default='idea')  # idea|outline|descriptions
     template_image_path = db.Column(db.String(500), nullable=True)
     template_style = db.Column(db.Text, nullable=True)  # 風格描述文字（無模板圖模式）
+    # 封面頁設定
+    cover_page_enabled = db.Column(db.Boolean, nullable=False, default=True)  # 第一頁是否採用極簡封面設計
     # 匯出設定
     export_extractor_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 元件提取方法: mineru, hybrid
     export_inpaint_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 背景圖獲取方法: generative, baidu, hybrid
@@ -56,6 +58,7 @@ class Project(db.Model):
             'creation_type': self.creation_type,
             'template_image_url': f'/files/{self.id}/template/{self.template_image_path.split("/")[-1]}' if self.template_image_path else None,
             'template_style': self.template_style,
+            'cover_page_enabled': self.cover_page_enabled if self.cover_page_enabled is not None else True,
             'export_extractor_method': self.export_extractor_method or 'hybrid',
             'export_inpaint_method': self.export_inpaint_method or 'hybrid',
             'status': self.status,

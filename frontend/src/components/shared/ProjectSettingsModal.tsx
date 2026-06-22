@@ -16,6 +16,10 @@ interface ProjectSettingsModalProps {
   onSaveTemplateStyle: () => void;
   isSavingRequirements: boolean;
   isSavingTemplateStyle: boolean;
+  // 封面頁設定
+  coverPageEnabled?: boolean;
+  onCoverPageEnabledChange?: (value: boolean) => void;
+  isSavingCoverPage?: boolean;
   // 匯出設定
   exportExtractorMethod?: ExportExtractorMethod;
   exportInpaintMethod?: ExportInpaintMethod;
@@ -57,6 +61,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
   onSaveTemplateStyle,
   isSavingRequirements,
   isSavingTemplateStyle,
+  // 封面頁設定
+  coverPageEnabled = true,
+  onCoverPageEnabledChange,
+  isSavingCoverPage = false,
   // 匯出設定
   exportExtractorMethod = 'hybrid',
   exportInpaintMethod = 'hybrid',
@@ -194,6 +202,43 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                       如果同時上傳了模板圖片，風格描述會作為補充說明。
                     </p>
                   </div>
+                </div>
+
+                {/* 封面頁設定 */}
+                <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                  <div>
+                    <h4 className="text-base font-semibold text-gray-900 mb-2">封面頁設定</h4>
+                    <p className="text-sm text-gray-600">
+                      控制第一頁是否採用極簡封面設計風格
+                    </p>
+                  </div>
+                  <label className="flex items-start gap-4 cursor-pointer group">
+                    <div className="relative mt-0.5 flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={coverPageEnabled}
+                        onChange={(e) => onCoverPageEnabledChange?.(e.target.checked)}
+                        disabled={isSavingCoverPage}
+                        className="sr-only peer"
+                      />
+                      <div className={`w-11 h-6 rounded-full transition-colors ${
+                        coverPageEnabled ? 'bg-banana-500' : 'bg-gray-300'
+                      } peer-disabled:opacity-50`}>
+                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          coverPageEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`} />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {coverPageEnabled ? '啟用極簡封面（第一頁為封面）' : '停用極簡封面（第一頁與一般頁相同）'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        啟用時，AI 會將第一頁設計為只含標題、副標題與演講人資訊的極簡封面；停用則與其他頁面相同。
+                        {isSavingCoverPage && <span className="ml-2 text-banana-600">儲存中...</span>}
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             ) : activeTab === 'export' ? (

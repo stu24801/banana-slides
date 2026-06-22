@@ -352,13 +352,15 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
                 Generate description for a single page
                 注意：只傳遞 page_id（字串），不傳遞 ORM 物件，避免跨執行緒會話問題
                 """
+                import time  # 防429: Copilot/Claude/LlmProxy 批次限流
                 # 關鍵修復：在子執行緒中也需要應用上下文
                 with app.app_context():
                     try:
                         # Get singleton AI service instance
                         from services.ai_service_manager import get_ai_service
                         ai_service = get_ai_service()
-                        
+
+                        time.sleep(3.5)  # 新增：每次前加 3.5 秒延遲
                         desc_text = ai_service.generate_page_description(
                             project_context, outline, page_outline, page_index,
                             language=language
@@ -471,10 +473,15 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             # Get pages for this project (filtered by page_ids if provided)
             pages = get_filtered_pages(project_id, page_ids)
             pages_data = ai_service.flatten_outline(outline)
-            
+
+            # Get cover_page_enabled from project
+            from models import Project as _Project
+            _proj = _Project.query.get(project_id)
+            cover_page_enabled = (_proj.cover_page_enabled if _proj and _proj.cover_page_enabled is not None else True)
+
             # 注意：不在任務開始時獲取模板路徑，而是在每個子執行緒中動態獲取
             # 這樣可以確保即使使用者在上傳新模板後立即生成，也能使用最新模板
-            
+
             # Initialize progress
             task.set_progress({
                 "total": len(pages),
@@ -548,7 +555,8 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                             has_material_images=has_material_images,
                             extra_requirements=extra_requirements,
                             language=language,
-                            has_template=use_template
+                            has_template=use_template,
+                            cover_page_enabled=cover_page_enabled
                         )
                         logger.debug(f"Generated image prompt for page {page_id}")
                         
@@ -762,13 +770,18 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             page_data = page.get_outline_content() or {}
             if page.part:
                 page_data['part'] = page.part
-            
+
+            from models import Project as _Project
+            _proj = _Project.query.get(project_id)
+            _cover_page_enabled = (_proj.cover_page_enabled if _proj and _proj.cover_page_enabled is not None else True)
+
             prompt = ai_service.generate_image_prompt(
                 outline, page_data, desc_text, page.order_index + 1,
                 has_material_images=has_material_images,
                 extra_requirements=extra_requirements,
                 language=language,
-                has_template=use_template
+                has_template=use_template,
+                cover_page_enabled=_cover_page_enabled
             )
             
             # Generate image

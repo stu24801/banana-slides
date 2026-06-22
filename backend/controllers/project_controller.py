@@ -3,10 +3,11 @@ Project Controller - handles project-related endpoints
 """
 import json
 import logging
+import threading
 import traceback
 from datetime import datetime
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response, stream_with_context
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import BadRequest
@@ -276,6 +277,10 @@ def update_project(project_id):
         if 'template_style' in data:
             project.template_style = data['template_style']
         
+        # Update cover page setting if provided
+        if 'cover_page_enabled' in data:
+            project.cover_page_enabled = bool(data['cover_page_enabled'])
+
         # Update export settings if provided
         if 'export_extractor_method' in data:
             project.export_extractor_method = data['export_extractor_method']
@@ -342,224 +347,229 @@ def delete_project(project_id):
 def generate_outline(project_id):
     """
     POST /api/projects/{project_id}/generate/outline - Generate outline
-    
-    For 'idea' type: Generate outline from idea_prompt
-    For 'outline' type: Parse outline_text into structured format
-    
-    Request body (optional):
-    {
-        "idea_prompt": "...",  # for idea type
-        "language": "zh"  # output language: zh, en, ja, auto
-    }
+
+    Uses chunked streaming to keep Cloudflare connection alive during long AI calls.
+    Sends newlines (valid JSON leading whitespace) every 10s, then the final JSON.
     """
-    try:
-        project = Project.query.get(project_id)
-        
-        if not project:
-            return not_found('Project')
-        
-        # Get singleton AI service instance
-        ai_service = get_ai_service()
-        
-        # Get request data and language parameter
-        data = request.get_json() or {}
-        language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
-        
-        # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id)
-        if reference_files_content:
-            logger.info(f"Found {len(reference_files_content)} reference files for project {project_id}")
-            for rf in reference_files_content:
-                logger.info(f"  - {rf['filename']}: {len(rf['content'])} characters")
+    project = Project.query.get(project_id)
+    if not project:
+        return not_found('Project')
+
+    data = request.get_json() or {}
+    language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
+
+    # Auto-route descriptions type
+    if project.creation_type == 'descriptions':
+        logger.info(f"Project {project_id} is descriptions type, auto-routing to generate_from_description()")
+        return generate_from_description(project_id)
+
+    if project.creation_type == 'outline' and not project.outline_text:
+        return bad_request("outline_text is required for outline type project")
+
+    if project.creation_type not in ('outline',) and not (data.get('idea_prompt') or project.idea_prompt):
+        return bad_request("idea_prompt is required")
+
+    # Snapshot primitive values for the background thread (avoid cross-thread ORM objects)
+    creation_type  = project.creation_type
+    outline_text   = project.outline_text
+    idea_prompt    = data.get('idea_prompt') or project.idea_prompt
+    app            = current_app._get_current_object()
+    ref_files      = _get_project_reference_files_content(project_id)
+
+    result_holder = [None]   # [{'pages': [...]}]
+    error_holder  = [None]   # [str]
+    done          = threading.Event()
+
+    def _do_generation():
+        with app.app_context():
+            try:
+                ai_service = get_ai_service()
+                # Re-fetch project inside this thread's session
+                proj = Project.query.get(project_id)
+
+                if creation_type == 'outline':
+                    ctx = ProjectContext(proj, ref_files)
+                    outline = ai_service.parse_outline_text(ctx, language=language)
+                else:
+                    proj.idea_prompt = idea_prompt
+                    ctx = ProjectContext(proj, ref_files)
+                    outline = ai_service.generate_outline(ctx, language=language)
+
+                pages_data = ai_service.flatten_outline(outline)
+
+                old_pages = Page.query.filter_by(project_id=project_id).all()
+                for p in old_pages:
+                    db.session.delete(p)
+
+                pages_list = []
+                for i, pd in enumerate(pages_data):
+                    page = Page(
+                        project_id=project_id,
+                        order_index=i,
+                        part=pd.get('part'),
+                        status='DRAFT'
+                    )
+                    page.set_outline_content({
+                        'title': pd.get('title'),
+                        'points': pd.get('points', [])
+                    })
+                    db.session.add(page)
+                    pages_list.append(page)
+
+                proj.status = 'OUTLINE_GENERATED'
+                proj.updated_at = datetime.utcnow()
+                db.session.commit()
+
+                logger.info(f"大綱生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面")
+                result_holder[0] = {'pages': [p.to_dict() for p in pages_list]}
+            except Exception as exc:
+                db.session.rollback()
+                logger.error(f"generate_outline background task failed: {exc}", exc_info=True)
+                error_holder[0] = str(exc)
+            finally:
+                done.set()
+
+    t = threading.Thread(target=_do_generation, daemon=True)
+    t.start()
+
+    def _stream():
+        # Send newlines every 10 s — JSON whitespace, keeps Cloudflare tunnel alive
+        while not done.wait(timeout=10):
+            yield b'\n'
+
+        if error_holder[0]:
+            yield json.dumps({
+                'success': False,
+                'error': {'code': 'AI_SERVICE_ERROR', 'message': error_holder[0]}
+            }).encode()
         else:
-            logger.info(f"No reference files found for project {project_id}")
-        
-        # 根據專案型別選擇不同的處理方式
-        if project.creation_type == 'outline':
-            # 從大綱生成：解析使用者輸入的大綱文字
-            if not project.outline_text:
-                return bad_request("outline_text is required for outline type project")
-            
-            # Create project context and parse outline text into structured format
-            project_context = ProjectContext(project, reference_files_content)
-            outline = ai_service.parse_outline_text(project_context, language=language)
-        elif project.creation_type == 'descriptions':
-            # 從描述生成：自動轉接到 from-description 端點
-            logger.info(f"Project {project_id} is descriptions type, auto-routing to generate_from_description()")
-            return generate_from_description(project_id)
-        else:
-            # 一句話生成：從idea生成大綱
-            idea_prompt = data.get('idea_prompt') or project.idea_prompt
-            
-            if not idea_prompt:
-                return bad_request("idea_prompt is required")
-            
-            project.idea_prompt = idea_prompt
-            
-            # Create project context and generate outline from idea
-            project_context = ProjectContext(project, reference_files_content)
-            outline = ai_service.generate_outline(project_context, language=language)
-        
-        # Flatten outline to pages
-        pages_data = ai_service.flatten_outline(outline)
-        
-        # Delete existing pages (using ORM session to trigger cascades)
-        # Note: Cannot use bulk delete as it bypasses ORM cascades for PageImageVersion
-        old_pages = Page.query.filter_by(project_id=project_id).all()
-        for old_page in old_pages:
-            db.session.delete(old_page)
-        
-        # Create pages from outline
-        pages_list = []
-        for i, page_data in enumerate(pages_data):
-            page = Page(
-                project_id=project_id,
-                order_index=i,
-                part=page_data.get('part'),
-                status='DRAFT'
-            )
-            page.set_outline_content({
-                'title': page_data.get('title'),
-                'points': page_data.get('points', [])
-            })
-            
-            db.session.add(page)
-            pages_list.append(page)
-        
-        # Update project status
-        project.status = 'OUTLINE_GENERATED'
-        project.updated_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        logger.info(f"大綱生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面")
-        
-        # Return pages
-        return success_response({
-            'pages': [page.to_dict() for page in pages_list]
-        })
-    
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"generate_outline failed: {str(e)}", exc_info=True)
-        return error_response('AI_SERVICE_ERROR', str(e), 503)
+            yield json.dumps({
+                'success': True,
+                'message': 'Success',
+                'data': result_holder[0]
+            }).encode()
+
+    return Response(stream_with_context(_stream()), content_type='application/json', status=200)
 
 
 @project_bp.route('/<project_id>/generate/from-description', methods=['POST'])
 def generate_from_description(project_id):
     """
     POST /api/projects/{project_id}/generate/from-description - Generate outline and page descriptions from description text
-    
-    This endpoint:
-    1. Parses the description_text to extract outline structure
-    2. Splits the description_text into individual page descriptions
-    3. Creates pages with both outline and description content filled
-    4. Sets project status to DESCRIPTIONS_GENERATED
-    
-    Request body (optional):
-    {
-        "description_text": "...",  # if not provided, uses project.description_text
-        "language": "zh"  # output language: zh, en, ja, auto
-    }
+
+    Uses chunked streaming (same as generate_outline) to keep Cloudflare connection alive
+    during the two sequential AI calls (parse outline + split descriptions).
     """
-    
-    try:
-        project = Project.query.get(project_id)
-        
-        if not project:
-            return not_found('Project')
-        
-        if project.creation_type != 'descriptions':
-            return bad_request("This endpoint is only for descriptions type projects")
-        
-        # Get description text and language
-        data = request.get_json() or {}
-        description_text = data.get('description_text') or project.description_text
-        language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
-        
-        if not description_text:
-            return bad_request("description_text is required")
-        
-        project.description_text = description_text
-        
-        # Get singleton AI service instance
-        ai_service = get_ai_service()
-        
-        # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id)
-        project_context = ProjectContext(project, reference_files_content)
-        
-        logger.info(f"開始從描述生成大綱和頁面描述: 專案 {project_id}")
-        
-        # Step 1: Parse description to outline
-        logger.info("Step 1: 解析描述文字到大綱結構...")
-        outline = ai_service.parse_description_to_outline(project_context, language=language)
-        logger.info(f"大綱解析完成，共 {len(ai_service.flatten_outline(outline))} 頁")
-        
-        # Step 2: Split description into page descriptions
-        logger.info("Step 2: 切分描述文字到每頁描述...")
-        page_descriptions = ai_service.parse_description_to_page_descriptions(project_context, outline, language=language)
-        logger.info(f"描述切分完成，共 {len(page_descriptions)} 頁")
-        
-        # Step 3: Flatten outline to pages
-        pages_data = ai_service.flatten_outline(outline)
-        
-        if len(pages_data) != len(page_descriptions):
-            logger.warning(f"頁面數量不匹配: 大綱 {len(pages_data)} 頁, 描述 {len(page_descriptions)} 頁")
-            # 取較小的數量，避免索引錯誤
-            min_count = min(len(pages_data), len(page_descriptions))
-            pages_data = pages_data[:min_count]
-            page_descriptions = page_descriptions[:min_count]
-        
-        # Step 4: Delete existing pages (using ORM session to trigger cascades)
-        old_pages = Page.query.filter_by(project_id=project_id).all()
-        for old_page in old_pages:
-            db.session.delete(old_page)
-        
-        # Step 5: Create pages with both outline and description
-        pages_list = []
-        for i, (page_data, page_desc) in enumerate(zip(pages_data, page_descriptions)):
-            page = Page(
-                project_id=project_id,
-                order_index=i,
-                part=page_data.get('part'),
-                status='DESCRIPTION_GENERATED'  # 直接設定為已生成描述
-            )
-            
-            # Set outline content
-            page.set_outline_content({
-                'title': page_data.get('title'),
-                'points': page_data.get('points', [])
-            })
-            
-            # Set description content
-            desc_content = {
-                "text": page_desc,
-                "generated_at": datetime.utcnow().isoformat()
-            }
-            page.set_description_content(desc_content)
-            
-            db.session.add(page)
-            pages_list.append(page)
-        
-        # Update project status
-        project.status = 'DESCRIPTIONS_GENERATED'
-        project.updated_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        logger.info(f"從描述生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面，已填充大綱和描述")
-        
-        # Return pages
-        return success_response({
-            'pages': [page.to_dict() for page in pages_list],
-            'status': 'DESCRIPTIONS_GENERATED'
-        })
-    
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"generate_from_description failed: {str(e)}", exc_info=True)
-        return error_response('AI_SERVICE_ERROR', str(e), 503)
+    project = Project.query.get(project_id)
+    if not project:
+        return not_found('Project')
+
+    if project.creation_type != 'descriptions':
+        return bad_request("This endpoint is only for descriptions type projects")
+
+    data = request.get_json() or {}
+    description_text = data.get('description_text') or project.description_text
+    language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
+
+    if not description_text:
+        return bad_request("description_text is required")
+
+    # Snapshot values for background thread
+    app               = current_app._get_current_object()
+    ref_files         = _get_project_reference_files_content(project_id)
+
+    result_holder = [None]
+    error_holder  = [None]
+    done          = threading.Event()
+
+    def _do_generation():
+        with app.app_context():
+            try:
+                ai_service = get_ai_service()
+                proj = Project.query.get(project_id)
+                proj.description_text = description_text
+
+                project_context = ProjectContext(proj, ref_files)
+
+                logger.info(f"開始從描述生成大綱和頁面描述: 專案 {project_id}")
+
+                logger.info("Step 1: 解析描述文字到大綱結構...")
+                outline = ai_service.parse_description_to_outline(project_context, language=language)
+                logger.info(f"大綱解析完成，共 {len(ai_service.flatten_outline(outline))} 頁")
+
+                logger.info("Step 2: 切分描述文字到每頁描述...")
+                page_descriptions = ai_service.parse_description_to_page_descriptions(
+                    project_context, outline, language=language
+                )
+                logger.info(f"描述切分完成，共 {len(page_descriptions)} 頁")
+
+                pages_data = ai_service.flatten_outline(outline)
+
+                if len(pages_data) != len(page_descriptions):
+                    logger.warning(f"頁面數量不匹配: 大綱 {len(pages_data)} 頁, 描述 {len(page_descriptions)} 頁")
+                    min_count = min(len(pages_data), len(page_descriptions))
+                    pages_data = pages_data[:min_count]
+                    page_descriptions = page_descriptions[:min_count]
+
+                old_pages = Page.query.filter_by(project_id=project_id).all()
+                for old_page in old_pages:
+                    db.session.delete(old_page)
+
+                pages_list = []
+                for i, (page_data, page_desc) in enumerate(zip(pages_data, page_descriptions)):
+                    page = Page(
+                        project_id=project_id,
+                        order_index=i,
+                        part=page_data.get('part'),
+                        status='DESCRIPTION_GENERATED'
+                    )
+                    page.set_outline_content({
+                        'title': page_data.get('title'),
+                        'points': page_data.get('points', [])
+                    })
+                    page.set_description_content({
+                        "text": page_desc,
+                        "generated_at": datetime.utcnow().isoformat()
+                    })
+                    db.session.add(page)
+                    pages_list.append(page)
+
+                proj.status = 'DESCRIPTIONS_GENERATED'
+                proj.updated_at = datetime.utcnow()
+                db.session.commit()
+
+                logger.info(f"從描述生成完成: 專案 {project_id}, 建立了 {len(pages_list)} 個頁面")
+                result_holder[0] = {
+                    'pages': [p.to_dict() for p in pages_list],
+                    'status': 'DESCRIPTIONS_GENERATED'
+                }
+            except Exception as exc:
+                db.session.rollback()
+                logger.error(f"generate_from_description background task failed: {exc}", exc_info=True)
+                error_holder[0] = str(exc)
+            finally:
+                done.set()
+
+    t = threading.Thread(target=_do_generation, daemon=True)
+    t.start()
+
+    def _stream():
+        while not done.wait(timeout=10):
+            yield b'\n'
+
+        if error_holder[0]:
+            yield json.dumps({
+                'success': False,
+                'error': {'code': 'AI_SERVICE_ERROR', 'message': error_holder[0]}
+            }).encode()
+        else:
+            yield json.dumps({
+                'success': True,
+                'message': 'Success',
+                'data': result_holder[0]
+            }).encode()
+
+    return Response(stream_with_context(_stream()), content_type='application/json', status=200)
 
 
 @project_bp.route('/<project_id>/generate/descriptions', methods=['POST'])

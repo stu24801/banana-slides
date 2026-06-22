@@ -147,7 +147,7 @@ You can organize the content in two ways:
 ]
 
 Choose the format that best fits the content. Use parts when the PPT has clear major sections.
-Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information.
+{f"Unless otherwise specified, the first page should be kept simplest, containing only the title, subtitle, and presenter information." if getattr(project_context, 'cover_page_enabled', True) else ""}
 
 The user's request: {idea_prompt}. Now generate the outline, don't include any other text.
 {get_language_instruction(language)}
@@ -256,7 +256,7 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
 我們已經有了完整的大綱：\n{outline}\n{part_info}
 現在請為第 {page_index} 頁生成描述：
 {page_outline}
-{"**除非特殊要求，第一頁的內容需要保持極簡，只放標題副標題以及演講人等（輸出到標題後）, 不新增任何素材。**" if page_index == 1 else ""}
+{("**除非特殊要求，第一頁的內容需要保持極簡，只放標題副標題以及演講人等（輸出到標題後）, 不新增任何素材。**" if page_index == 1 and getattr(project_context, 'cover_page_enabled', True) else "")}
 
 【重要提示】生成的"頁面文字"部分會直接渲染到PPT頁面上，因此請務必注意：
 1. 文字內容要簡潔精煉，每條要點控制在15-25字以內
@@ -267,7 +267,7 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
 
 輸出格式示例：
 頁面標題：原始社會：與自然共生
-{"副標題：人類祖先和自然的相處之道" if page_index == 1 else ""}
+{"副標題：人類祖先和自然的相處之道" if page_index == 1 and getattr(project_context, 'cover_page_enabled', True) else ""}
 
 頁面文字：
 - 狩獵採集文明：人類活動規模小，對環境影響有限
@@ -287,13 +287,14 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
     return final_prompt
 
 
-def get_image_generation_prompt(page_desc: str, outline_text: str, 
+def get_image_generation_prompt(page_desc: str, outline_text: str,
                                 current_section: str,
                                 has_material_images: bool = False,
                                 extra_requirements: str = None,
                                 language: str = None,
                                 has_template: bool = True,
-                                page_index: int = 1) -> str:
+                                page_index: int = 1,
+                                cover_page_enabled: bool = True) -> str:
     """
     生成圖片生成 prompt
     
@@ -353,7 +354,7 @@ def get_image_generation_prompt(page_desc: str, outline_text: str,
 {get_ppt_language_instruction(language)}
 {material_images_note}{extra_req_text}
 
-{"**注意：當前頁面為ppt的封面頁，請你採用專業的封面設計美學技巧，務必凸顯出頁面標題，分清主次，確保一下就能抓住觀眾的注意力。**" if page_index == 1 else ""}
+{"**注意：當前頁面為ppt的封面頁，請你採用專業的封面設計美學技巧，務必凸顯出頁面標題，分清主次，確保一下就能抓住觀眾的注意力。**" if page_index == 1 and cover_page_enabled else ""}
 """)
     
     logger.debug(f"[get_image_generation_prompt] Final prompt:\n{prompt}")

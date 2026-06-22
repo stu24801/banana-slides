@@ -45,13 +45,15 @@ class ProjectContext:
             self.outline_text = project_or_dict.outline_text
             self.description_text = project_or_dict.description_text
             self.creation_type = project_or_dict.creation_type or 'idea'
+            self.cover_page_enabled = project_or_dict.cover_page_enabled if project_or_dict.cover_page_enabled is not None else True
         else:
             # 是字典
             self.idea_prompt = project_or_dict.get('idea_prompt')
             self.outline_text = project_or_dict.get('outline_text')
             self.description_text = project_or_dict.get('description_text')
             self.creation_type = project_or_dict.get('creation_type', 'idea')
-        
+            self.cover_page_enabled = project_or_dict.get('cover_page_enabled', True)
+
         self.reference_files_content = reference_files_content or []
     
     def to_dict(self) -> Dict:
@@ -311,8 +313,17 @@ class AIService:
         Returns:
             List of outline items (may contain parts with pages or direct pages)
         """
-        outline_prompt = get_outline_generation_prompt(project_context, language)
-        outline = self.generate_json(outline_prompt, thinking_budget=1000)
+        import time
+        import threading
+        _copilot_llm_queue_global_lock = getattr(AIService, '_copilot_llm_queue_global_lock', None)
+        if not _copilot_llm_queue_global_lock:
+            _copilot_llm_queue_global_lock = threading.Lock()
+            setattr(AIService, '_copilot_llm_queue_global_lock', _copilot_llm_queue_global_lock)
+        with _copilot_llm_queue_global_lock:
+            import time
+            outline_prompt = get_outline_generation_prompt(project_context, language)
+            time.sleep(3.5)  # Copilot/LLM proxy全域鎖 + 延遲，全站同時僅允許1個大綱請求
+            outline = self.generate_json(outline_prompt, thinking_budget=1000)
         return outline
     
     def parse_outline_text(self, project_context: ProjectContext, language: str = None) -> List[Dict]:
@@ -394,12 +405,13 @@ class AIService:
         result = "\n".join(text_parts)
         return dedent(result)
     
-    def generate_image_prompt(self, outline: List[Dict], page: Dict, 
-                            page_desc: str, page_index: int, 
+    def generate_image_prompt(self, outline: List[Dict], page: Dict,
+                            page_desc: str, page_index: int,
                             has_material_images: bool = False,
                             extra_requirements: Optional[str] = None,
                             language='zh',
-                            has_template: bool = True) -> str:
+                            has_template: bool = True,
+                            cover_page_enabled: bool = True) -> str:
         """
         Generate image generation prompt for a page
         Based on demo.py gen_prompts()
@@ -437,7 +449,8 @@ class AIService:
             extra_requirements=extra_requirements,
             language=language,
             has_template=has_template,
-            page_index=page_index
+            page_index=page_index,
+            cover_page_enabled=cover_page_enabled
         )
         
         return prompt
