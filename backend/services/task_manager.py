@@ -31,46 +31,70 @@ def detect_text_regions_ocr(image_path: str) -> list:
         import numpy as np
 
         # 初始化 OCR 模型，只載入一次
+        # PaddleOCR 3.x：show_log/use_angle_cls 已移除；
+        # enable_mkldnn=False 避免 oneDNN PIR 轉換錯誤（CPU 推論）
         global _ocr_instance
         if '_ocr_instance' not in globals():
             logger.info("Initializing PaddleOCR...")
-            _ocr_instance = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
-        
+            _ocr_instance = PaddleOCR(
+                use_textline_orientation=True,
+                lang="ch",
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                enable_mkldnn=False,
+            )
+
+        def _sample_text_color(img, x0, y0, x1, y1):
+            """取樣 bbox 內文字顏色：背景取邊框中位數，文字取與背景差異大的像素中位數"""
+            crop = np.asarray(img.crop((x0, y0, x1, y1)).convert('RGB'), dtype=np.int16)
+            if crop.size == 0:
+                return '#333333'
+            border = np.concatenate([crop[0], crop[-1], crop[:, 0], crop[:, -1]])
+            bg = np.median(border, axis=0)
+            dist = np.abs(crop - bg).sum(axis=2)
+            mask = dist > 90
+            if mask.sum() < 8:
+                return '#333333'
+            c = np.median(crop[mask], axis=0).astype(int)
+            return '#%02X%02X%02X' % tuple(c)
+
         logger.info(f"Running OCR on {image_path}")
-        result = _ocr_instance.ocr(image_path, cls=True)
-        
-        if not result or not result[0]:
+        result = _ocr_instance.predict(image_path)
+
+        if not result:
             return []
-            
-        with Image.open(image_path) as img:
-            img_width, img_height = img.size
-            
+
+        img = Image.open(image_path)
+        img_width, img_height = img.size
+
         valid = []
-        for line in result[0]:
-            # line 格式: [[p1, p2, p3, p4], (text, confidence)]
-            box, (text, conf) = line
-            if conf < 0.6: # 忽略低信心度的結果
-                continue
-                
-            # box 是四個頂點的座標 [[x,y], [x,y], [x,y], [x,y]]
-            x_coords = [p[0] for p in box]
-            y_coords = [p[1] for p in box]
-            
-            x0 = min(x_coords) / img_width
-            y0 = min(y_coords) / img_height
-            x1 = max(x_coords) / img_width
-            y1 = max(y_coords) / img_height
-            
-            valid.append({
-                "text": text,
-                "x0": max(0.0, min(1.0, x0)),
-                "y0": max(0.0, min(1.0, y0)),
-                "x1": max(0.0, min(1.0, x1)),
-                "y1": max(0.0, min(1.0, y1)),
-                "type": "other", # type 可以後續用配對來決定
-                "color": "#FFFFFF", # 先用預設，後續可從原圖採樣
-            })
-            
+        for page in result:
+            d = page if isinstance(page, dict) else page.json.get('res', {})
+            texts = d.get('rec_texts', [])
+            scores = d.get('rec_scores', [])
+            polys = d.get('rec_polys', d.get('dt_polys', []))
+            for text, conf, box in zip(texts, scores, polys):
+                if conf < 0.6:  # 忽略低信心度的結果
+                    continue
+
+                # box 是四個頂點的座標 [[x,y], [x,y], [x,y], [x,y]]
+                x_coords = [float(p[0]) for p in box]
+                y_coords = [float(p[1]) for p in box]
+
+                px0, py0 = min(x_coords), min(y_coords)
+                px1, py1 = max(x_coords), max(y_coords)
+                color = _sample_text_color(img, int(px0), int(py0), int(px1), int(py1))
+
+                valid.append({
+                    "text": text,
+                    "x0": max(0.0, min(1.0, px0 / img_width)),
+                    "y0": max(0.0, min(1.0, py0 / img_height)),
+                    "x1": max(0.0, min(1.0, px1 / img_width)),
+                    "y1": max(0.0, min(1.0, py1 / img_height)),
+                    "type": "other",
+                    "color": color,
+                })
+
         return valid
     except Exception as e:
         logger.error(f"detect_text_regions_ocr failed: {e}", exc_info=True)

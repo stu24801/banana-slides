@@ -193,7 +193,8 @@ class ExportService:
         def _add_text_box_inches(slide, left, top, width, height,
                                   text, font_size_pt, bold=False,
                                   color_rgb=(30, 30, 30),
-                                  align=PP_ALIGN.LEFT):
+                                  align=PP_ALIGN.LEFT,
+                                  word_wrap=True):
             """新增透明文字框，座標單位為 inch"""
             tb = slide.shapes.add_textbox(
                 Inches(left), Inches(top),
@@ -201,7 +202,7 @@ class ExportService:
             )
             _set_transparent(tb)
             tf = tb.text_frame
-            tf.word_wrap = True
+            tf.word_wrap = word_wrap
             tf.margin_left = Inches(0.03)
             tf.margin_right = Inches(0.03)
             tf.margin_top = Inches(0.01)
@@ -241,7 +242,8 @@ class ExportService:
             if rtype == 'title':
                 return max(20, min(54, round(pt)))
             else:
-                return max(11, min(32, round(pt)))
+                # OCR bbox 即實際字高，寬鬆上下限以忠實還原原圖字級
+                return max(6, min(60, round(pt)))
 
         def _match_outline_to_regions(title, points, text_regions):
             """
@@ -344,13 +346,11 @@ class ExportService:
 
             # ── 上層：精準文字框 ───────────────────────────────────────────────
             if text_regions:
-                # ✅ 模式 A：使用 OCR bbox 配合 outline 內容
-                matched_regions = _match_outline_to_regions(title, points, text_regions)
-                
-                # 如果完全沒配對到任何東西，回退到 fallback
-                if not matched_regions:
-                    matched_regions = []
-                
+                # ✅ 模式 A：直接使用 OCR 偵測的文字與 bbox
+                # OCR 文字即圖片上實際顯示的內容，逐行放回原位置，
+                # 避免將較長的 outline 句子塞入單行小框造成溢出
+                matched_regions = text_regions
+
                 # 如果有配對結果，繪製匹配成功的區域
                 if matched_regions:
                     for region in matched_regions:
@@ -360,26 +360,31 @@ class ExportService:
                             continue
 
                         left, top, w, h = _region_to_inches(region)
-                        font_size = _estimate_font_size(h, rtype)
+                        # 字級用原始 bbox 高度計算（_region_to_inches 的最小尺寸
+                        # 下限只用於框大小，避免小字被下限灌水放大）
+                        raw_h = (region['y1'] - region['y0']) * SLIDE_H_IN
+                        font_size = _estimate_font_size(raw_h, rtype)
                         bold = (rtype == 'title')
 
                         # 使用 OCR 偵測到的文字顏色
-                        hex_color = region.get('color', '#FFFFFF').lstrip('#')
+                        hex_color = region.get('color', '#333333').lstrip('#')
                         try:
                             cr = int(hex_color[0:2], 16)
                             cg = int(hex_color[2:4], 16)
                             cb = int(hex_color[4:6], 16)
                             color = (cr, cg, cb)
                         except Exception:
-                            color = (255, 255, 255)
+                            color = (51, 51, 51)
 
+                        # OCR 區域為單行文字，關閉自動換行以維持與原圖一致的行位置
                         _add_text_box_inches(
                             slide, left, top, w, h,
                             text=rtext,
                             font_size_pt=font_size,
                             bold=bold,
                             color_rgb=color,
-                            align=PP_ALIGN.LEFT
+                            align=PP_ALIGN.LEFT,
+                            word_wrap=False
                         )
                         logger.debug(f"Added matched region [{rtype}] '{rtext[:30]}' at ({left:.2f},{top:.2f})")
                 else:
@@ -393,7 +398,7 @@ class ExportService:
                     _add_text_box_inches(
                         slide, 0.3, 0.2, 9.4, 1.1,
                         text=title, font_size_pt=32, bold=True,
-                        color_rgb=(255, 255, 255), align=PP_ALIGN.LEFT
+                        color_rgb=(30, 30, 30), align=PP_ALIGN.LEFT
                     )
                 if points:
                     bullets_text = '\n'.join(
@@ -403,7 +408,7 @@ class ExportService:
                     _add_text_box_inches(
                         slide, 0.4, 1.5, 9.2, 3.8,
                         text=bullets_text, font_size_pt=18, bold=False,
-                        color_rgb=(255, 255, 255), align=PP_ALIGN.LEFT
+                        color_rgb=(51, 51, 51), align=PP_ALIGN.LEFT
                     )
 
         if output_file:
