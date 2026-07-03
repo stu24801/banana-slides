@@ -387,6 +387,26 @@ class ExportService:
                             word_wrap=False
                         )
                         logger.debug(f"Added matched region [{rtype}] '{rtext[:30]}' at ({left:.2f},{top:.2f})")
+
+                    # 標題保底：藝術字/風格化大標 OCR 常辨識失敗，
+                    # 若大綱標題未出現在任何 OCR 區塊中，補一個預設位置的標題框
+                    if title:
+                        import difflib
+                        t_clean = str(title).replace(' ', '')
+                        def _covers(r_text):
+                            r_clean = str(r_text).replace(' ', '')
+                            if not r_clean:
+                                return False
+                            if t_clean in r_clean or r_clean in t_clean:
+                                return len(r_clean) >= len(t_clean) * 0.5
+                            return difflib.SequenceMatcher(None, t_clean, r_clean).ratio() > 0.6
+                        if not any(_covers(r.get('text', '')) for r in matched_regions):
+                            logger.info(f"標題 '{title[:20]}' 未被 OCR 偵測到，補預設標題框")
+                            _add_text_box_inches(
+                                slide, 0.3, 0.2, 9.4, 1.1,
+                                text=title, font_size_pt=32, bold=True,
+                                color_rgb=(30, 30, 30), align=PP_ALIGN.LEFT
+                            )
                 else:
                     # 如果匹配失敗，回退到模式 B
                     text_regions = None
