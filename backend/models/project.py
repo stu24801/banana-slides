@@ -22,6 +22,7 @@ class Project(db.Model):
     template_style = db.Column(db.Text, nullable=True)  # 風格描述文字（無模板圖模式）
     # 封面頁設定
     cover_page_enabled = db.Column(db.Boolean, nullable=False, default=True)  # 第一頁是否採用極簡封面設計
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True, index=True)  # 專案擁有者
     # 匯出設定
     export_extractor_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 元件提取方法: mineru, hybrid
     export_inpaint_method = db.Column(db.String(50), nullable=True, default='hybrid')  # 背景圖獲取方法: generative, baidu, hybrid

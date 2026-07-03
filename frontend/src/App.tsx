@@ -33,6 +33,7 @@ function App() {
       .then(data => {
         setAuthRequired(data.auth_required);
         if (!data.auth_required || data.valid) {
+          if (data.username) localStorage.setItem('bs_username', data.username);
           setAuthed(true);
         }
       })

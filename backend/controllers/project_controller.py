@@ -7,7 +7,7 @@ import threading
 import traceback
 from datetime import datetime
 
-from flask import Blueprint, request, jsonify, current_app, Response, stream_with_context
+from flask import Blueprint, request, g, jsonify, current_app, Response, stream_with_context
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import BadRequest
@@ -137,6 +137,7 @@ def list_projects():
         # This avoids a second database query
         projects_with_extra = Project.query\
             .options(joinedload(Project.pages))\
+            .filter(Project.user_id == g.user_id)\
             .order_by(desc(Project.updated_at))\
             .limit(limit + 1)\
             .offset(offset)\
@@ -190,6 +191,7 @@ def create_project():
         
         # Create project
         project = Project(
+            user_id=g.user_id,
             creation_type=creation_type,
             idea_prompt=data.get('idea_prompt'),
             outline_text=data.get('outline_text'),
@@ -232,7 +234,7 @@ def get_project(project_id):
             .filter(Project.id == project_id)\
             .first()
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         return success_response(project.to_dict(include_pages=True))
@@ -260,7 +262,7 @@ def update_project(project_id):
             .filter(Project.id == project_id)\
             .first()
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         data = request.get_json()
@@ -323,7 +325,7 @@ def delete_project(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         # Delete project files
@@ -352,7 +354,7 @@ def generate_outline(project_id):
     Sends newlines (valid JSON leading whitespace) every 10s, then the final JSON.
     """
     project = Project.query.get(project_id)
-    if not project:
+    if not project or project.user_id != g.user_id:
         return not_found('Project')
 
     data = request.get_json() or {}
@@ -461,7 +463,7 @@ def generate_from_description(project_id):
     during the two sequential AI calls (parse outline + split descriptions).
     """
     project = Project.query.get(project_id)
-    if not project:
+    if not project or project.user_id != g.user_id:
         return not_found('Project')
 
     if project.creation_type != 'descriptions':
@@ -586,7 +588,7 @@ def generate_descriptions(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         if project.status not in ['OUTLINE_GENERATED', 'DRAFT', 'DESCRIPTIONS_GENERATED']:
@@ -679,7 +681,7 @@ def generate_images(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         # if project.status not in ['DESCRIPTIONS_GENERATED', 'OUTLINE_GENERATED']:
@@ -809,7 +811,7 @@ def refine_outline(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         data = request.get_json()
@@ -963,7 +965,7 @@ def refine_descriptions(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         data = request.get_json()

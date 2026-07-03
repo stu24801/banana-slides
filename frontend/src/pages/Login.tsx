@@ -5,28 +5,34 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'register' && password !== confirm) {
+      setError('兩次輸入的密碼不一致');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`/api/auth/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (data.success) {
-        if (data.token) {
-          localStorage.setItem('bs_auth_token', data.token);
-        }
-        onLogin(data.token || '');
+        localStorage.setItem('bs_auth_token', data.token);
+        localStorage.setItem('bs_username', data.username || username);
+        onLogin(data.token);
       } else {
-        setError(data.error || '密碼錯誤');
+        setError(data.error || (mode === 'login' ? '帳號或密碼錯誤' : '註冊失敗'));
       }
     } catch {
       setError('連線失敗，請稍後再試');
@@ -50,28 +56,67 @@ export function Login({ onLogin }: LoginProps) {
           onSubmit={handleSubmit}
           className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl"
         >
-          <h2 className="text-white font-semibold text-lg mb-4">請輸入存取密碼</h2>
+          <h2 className="text-white font-semibold text-lg mb-4">
+            {mode === 'login' ? '登入帳號' : '註冊新帳號'}
+          </h2>
 
+          <input
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="帳號"
+            autoFocus
+            autoComplete="username"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 mb-3"
+          />
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="密碼"
-            autoFocus
-            className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-3 text-sm outline-none focus:border-yellow-500 transition-colors mb-3"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 mb-3"
           />
-
-          {error && (
-            <p className="text-red-400 text-sm mb-3">⚠ {error}</p>
+          {mode === 'register' && (
+            <input
+              type="password"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              placeholder="確認密碼"
+              autoComplete="new-password"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 mb-3"
+            />
           )}
+
+          {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
           <button
             type="submit"
-            disabled={loading || !password}
-            className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-950 font-bold rounded-lg py-3 text-sm transition-colors"
+            disabled={loading || !username || !password}
+            className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold rounded-lg py-2.5 transition-colors"
           >
-            {loading ? '驗證中…' : '進入'}
+            {loading ? '處理中…' : mode === 'login' ? '登入' : '註冊並登入'}
           </button>
+
+          <p className="text-gray-400 text-sm mt-4 text-center">
+            {mode === 'login' ? (
+              <>
+                還沒有帳號？{' '}
+                <button type="button" className="text-yellow-500 hover:underline"
+                  onClick={() => { setMode('register'); setError(''); }}>
+                  註冊
+                </button>
+              </>
+            ) : (
+              <>
+                已有帳號？{' '}
+                <button type="button" className="text-yellow-500 hover:underline"
+                  onClick={() => { setMode('login'); setError(''); }}>
+                  返回登入
+                </button>
+              </>
+            )}
+          </p>
         </form>
       </div>
     </div>

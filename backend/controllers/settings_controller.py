@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 from contextlib import contextmanager
-from flask import Blueprint, request, current_app
+from flask import g, Blueprint, request, current_app, jsonify
 from PIL import Image
 from models import db, Settings, Task
 from utils import success_response, error_response, bad_request
@@ -134,6 +134,8 @@ def get_settings():
 
 @settings_bp.route("/", methods=["PUT"], strict_slashes=False)
 def update_settings():
+    if not getattr(g, 'is_admin', False):
+        return jsonify({'success': False, 'error': '僅管理員可修改系統設定'}), 403
     """
     PUT /api/settings - Update application settings
 
@@ -269,6 +271,8 @@ def update_settings():
 
 @settings_bp.route("/reset", methods=["POST"], strict_slashes=False)
 def reset_settings():
+    if not getattr(g, 'is_admin', False):
+        return jsonify({'success': False, 'error': '僅管理員可修改系統設定'}), 403
     """
     POST /api/settings/reset - Reset settings to default values
     """
