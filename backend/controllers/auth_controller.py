@@ -42,6 +42,14 @@ def _get_request_token() -> str:
 def _resolve_token(token: str):
     if not token:
         return None
+    # 服務對服務的固定 admin token（供後台系統狀態頁等內部整合使用）
+    import os
+    svc = os.getenv('ADMIN_API_TOKEN', '')
+    if svc and secrets.compare_digest(token, svc):
+        admin = User.query.filter_by(is_admin=True).first()
+        if admin:
+            return {'user_id': admin.id, 'username': admin.username,
+                    'is_admin': True, 'expires_at': time.time() + 60}
     info = _valid_tokens.get(token)
     if info is None:
         return None
@@ -150,3 +158,39 @@ def status():
         return jsonify({'auth_required': True, 'valid': False})
     return jsonify({'auth_required': True, 'valid': True,
                     'username': info['username'], 'is_admin': info['is_admin']})
+
+
+# ── Admin：使用者管理（後台系統狀態頁整合用） ─────────────────────────────────
+
+@auth_bp.get('/users')
+def list_users():
+    info = _resolve_token(_get_request_token())
+    if info is None or not info['is_admin']:
+        return jsonify({'success': False, 'error': '僅管理員可用'}), 403
+    from models import Project
+    from sqlalchemy import func
+    counts = dict(
+        db.session.query(Project.user_id, func.count(Project.id))
+        .group_by(Project.user_id).all()
+    )
+    users = User.query.order_by(User.created_at).all()
+    return jsonify({'success': True, 'users': [
+        {**u.to_dict(), 'project_count': counts.get(u.id, 0)} for u in users
+    ]})
+
+
+@auth_bp.put('/users/<username>/password')
+def admin_set_password(username):
+    info = _resolve_token(_get_request_token())
+    if info is None or not info['is_admin']:
+        return jsonify({'success': False, 'error': '僅管理員可用'}), 403
+    data = request.get_json(silent=True) or {}
+    new_pw = data.get('new_password') or ''
+    if len(new_pw) < 3:
+        return jsonify({'success': False, 'error': '密碼至少 3 個字元'}), 400
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return jsonify({'success': False, 'error': '帳號不存在'}), 404
+    user.set_password(new_pw)
+    db.session.commit()
+    return jsonify({'success': True, 'username': username})
