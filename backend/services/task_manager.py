@@ -18,6 +18,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# PaddleOCR 實例非 thread-safe：並行產圖時多執行緒同時 predict()
+# 會互相混到別頁的辨識結果，必須以鎖序列化
+_ocr_lock = threading.Lock()
+
 
 def detect_text_regions_ocr(image_path: str) -> list:
     """
@@ -31,46 +35,72 @@ def detect_text_regions_ocr(image_path: str) -> list:
         import numpy as np
 
         # 初始化 OCR 模型，只載入一次
+        # PaddleOCR 3.x：show_log/use_angle_cls 已移除；
+        # enable_mkldnn=False 避免 oneDNN PIR 轉換錯誤（CPU 推論）
         global _ocr_instance
-        if '_ocr_instance' not in globals():
-            logger.info("Initializing PaddleOCR...")
-            _ocr_instance = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
-        
+        with _ocr_lock:
+            if '_ocr_instance' not in globals():
+                logger.info("Initializing PaddleOCR...")
+                _ocr_instance = PaddleOCR(
+                    use_textline_orientation=True,
+                    lang="ch",
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    enable_mkldnn=False,
+                )
+
+        def _sample_text_color(img, x0, y0, x1, y1):
+            """取樣 bbox 內文字顏色：背景取邊框中位數，文字取與背景差異大的像素中位數"""
+            crop = np.asarray(img.crop((x0, y0, x1, y1)).convert('RGB'), dtype=np.int16)
+            if crop.size == 0:
+                return '#333333'
+            border = np.concatenate([crop[0], crop[-1], crop[:, 0], crop[:, -1]])
+            bg = np.median(border, axis=0)
+            dist = np.abs(crop - bg).sum(axis=2)
+            mask = dist > 90
+            if mask.sum() < 8:
+                return '#333333'
+            c = np.median(crop[mask], axis=0).astype(int)
+            return '#%02X%02X%02X' % tuple(c)
+
         logger.info(f"Running OCR on {image_path}")
-        result = _ocr_instance.ocr(image_path, cls=True)
-        
-        if not result or not result[0]:
+        with _ocr_lock:
+            result = _ocr_instance.predict(image_path)
+
+        if not result:
             return []
-            
-        with Image.open(image_path) as img:
-            img_width, img_height = img.size
-            
+
+        img = Image.open(image_path)
+        img_width, img_height = img.size
+
         valid = []
-        for line in result[0]:
-            # line 格式: [[p1, p2, p3, p4], (text, confidence)]
-            box, (text, conf) = line
-            if conf < 0.6: # 忽略低信心度的結果
-                continue
-                
-            # box 是四個頂點的座標 [[x,y], [x,y], [x,y], [x,y]]
-            x_coords = [p[0] for p in box]
-            y_coords = [p[1] for p in box]
-            
-            x0 = min(x_coords) / img_width
-            y0 = min(y_coords) / img_height
-            x1 = max(x_coords) / img_width
-            y1 = max(y_coords) / img_height
-            
-            valid.append({
-                "text": text,
-                "x0": max(0.0, min(1.0, x0)),
-                "y0": max(0.0, min(1.0, y0)),
-                "x1": max(0.0, min(1.0, x1)),
-                "y1": max(0.0, min(1.0, y1)),
-                "type": "other", # type 可以後續用配對來決定
-                "color": "#FFFFFF", # 先用預設，後續可從原圖採樣
-            })
-            
+        for page in result:
+            d = page if isinstance(page, dict) else page.json.get('res', {})
+            texts = d.get('rec_texts', [])
+            scores = d.get('rec_scores', [])
+            polys = d.get('rec_polys', d.get('dt_polys', []))
+            for text, conf, box in zip(texts, scores, polys):
+                if conf < 0.6:  # 忽略低信心度的結果
+                    continue
+
+                # box 是四個頂點的座標 [[x,y], [x,y], [x,y], [x,y]]
+                x_coords = [float(p[0]) for p in box]
+                y_coords = [float(p[1]) for p in box]
+
+                px0, py0 = min(x_coords), min(y_coords)
+                px1, py1 = max(x_coords), max(y_coords)
+                color = _sample_text_color(img, int(px0), int(py0), int(px1), int(py1))
+
+                valid.append({
+                    "text": text,
+                    "x0": max(0.0, min(1.0, px0 / img_width)),
+                    "y0": max(0.0, min(1.0, py0 / img_height)),
+                    "x1": max(0.0, min(1.0, px1 / img_width)),
+                    "y1": max(0.0, min(1.0, py1 / img_height)),
+                    "type": "other",
+                    "color": color,
+                })
+
         return valid
     except Exception as e:
         logger.error(f"detect_text_regions_ocr failed: {e}", exc_info=True)
@@ -352,13 +382,15 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
                 Generate description for a single page
                 注意：只傳遞 page_id（字串），不傳遞 ORM 物件，避免跨執行緒會話問題
                 """
+                import time  # 防429: Copilot/Claude/LlmProxy 批次限流
                 # 關鍵修復：在子執行緒中也需要應用上下文
                 with app.app_context():
                     try:
                         # Get singleton AI service instance
                         from services.ai_service_manager import get_ai_service
                         ai_service = get_ai_service()
-                        
+
+                        time.sleep(3.5)  # 新增：每次前加 3.5 秒延遲
                         desc_text = ai_service.generate_page_description(
                             project_context, outline, page_outline, page_index,
                             language=language
@@ -471,10 +503,15 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             # Get pages for this project (filtered by page_ids if provided)
             pages = get_filtered_pages(project_id, page_ids)
             pages_data = ai_service.flatten_outline(outline)
-            
+
+            # Get cover_page_enabled from project
+            from models import Project as _Project
+            _proj = _Project.query.get(project_id)
+            cover_page_enabled = (_proj.cover_page_enabled if _proj and _proj.cover_page_enabled is not None else True)
+
             # 注意：不在任務開始時獲取模板路徑，而是在每個子執行緒中動態獲取
             # 這樣可以確保即使使用者在上傳新模板後立即生成，也能使用最新模板
-            
+
             # Initialize progress
             task.set_progress({
                 "total": len(pages),
@@ -548,7 +585,8 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                             has_material_images=has_material_images,
                             extra_requirements=extra_requirements,
                             language=language,
-                            has_template=use_template
+                            has_template=use_template,
+                            cover_page_enabled=cover_page_enabled
                         )
                         logger.debug(f"Generated image prompt for page {page_id}")
                         
@@ -762,13 +800,18 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             page_data = page.get_outline_content() or {}
             if page.part:
                 page_data['part'] = page.part
-            
+
+            from models import Project as _Project
+            _proj = _Project.query.get(project_id)
+            _cover_page_enabled = (_proj.cover_page_enabled if _proj and _proj.cover_page_enabled is not None else True)
+
             prompt = ai_service.generate_image_prompt(
                 outline, page_data, desc_text, page.order_index + 1,
                 has_material_images=has_material_images,
                 extra_requirements=extra_requirements,
                 language=language,
-                has_template=use_template
+                has_template=use_template,
+                cover_page_enabled=_cover_page_enabled
             )
             
             # Generate image

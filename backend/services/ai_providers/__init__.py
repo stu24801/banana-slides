@@ -29,8 +29,8 @@ import os
 import logging
 from typing import Dict, Any
 
-from .text import TextProvider, GenAITextProvider, OpenAITextProvider
-from .image import ImageProvider, GenAIImageProvider, OpenAIImageProvider
+from .text import TextProvider, OpenAITextProvider
+from .image import ImageProvider, OpenAIImageProvider
 
 logger = logging.getLogger(__name__)
 

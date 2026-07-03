@@ -113,8 +113,8 @@ def create_app():
     app.register_blueprint(auth_bp)
 
     # ── Global auth guard ──────────────────────────────────────────────────────
-    from controllers.auth_controller import _get_password, _is_valid_token
-    from flask import request as _req, jsonify as _jsonify
+    from controllers.auth_controller import authenticate_request
+    from flask import request as _req
 
     @app.before_request
     def _global_auth():
@@ -128,16 +128,8 @@ def create_app():
             _req.path.startswith('/uploads/')
         ):
             return
-        # 若未設定密碼，全部放行
-        if not _get_password():
-            return
-        token = (
-            _req.headers.get('X-Auth-Token') or
-            _req.headers.get('Authorization', '').removeprefix('Bearer ').strip() or
-            _req.args.get('token', '')
-        )
-        if not _is_valid_token(token):
-            return _jsonify({'error': '未授權，請先登入', 'code': 'UNAUTHORIZED'}), 401
+        # 帳號制：所有 API 一律需登入
+        return authenticate_request()
 
     with app.app_context():
         # Load settings from database and sync to app.config

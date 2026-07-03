@@ -30,6 +30,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     curl \
     libgl1 \
     libglib2.0-0 \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # 从 uv 阶段复制二进制文件

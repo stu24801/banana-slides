@@ -111,6 +111,11 @@ export const SlidePreview: React.FC = () => {
     (currentProject?.export_inpaint_method as ExportInpaintMethod) || 'hybrid'
   );
   const [isSavingExportSettings, setIsSavingExportSettings] = useState(false);
+  // 封面頁設定
+  const [coverPageEnabled, setCoverPageEnabled] = useState<boolean>(
+    currentProject?.cover_page_enabled ?? true
+  );
+  const [isSavingCoverPage, setIsSavingCoverPage] = useState(false);
   // 每頁編輯引數快取（前端會話內快取，便於重複執行）
   const [editContextByPage, setEditContextByPage] = useState<Record<string, {
     prompt: string;
@@ -173,6 +178,8 @@ export const SlidePreview: React.FC = () => {
         // 新專案，初始化額外要求和風格描述
         setExtraRequirements(currentProject.extra_requirements || '');
         setTemplateStyle(currentProject.template_style || '');
+        // 初始化封面頁設定
+        setCoverPageEnabled(currentProject.cover_page_enabled ?? true);
         // 初始化匯出設定
         setExportExtractorMethod((currentProject.export_extractor_method as ExportExtractorMethod) || 'hybrid');
         setExportInpaintMethod((currentProject.export_inpaint_method as ExportInpaintMethod) || 'hybrid');
@@ -1011,6 +1018,21 @@ export const SlidePreview: React.FC = () => {
       setIsSavingExportSettings(false);
     }
   }, [currentProject, projectId, exportExtractorMethod, exportInpaintMethod, syncProject, show]);
+
+  const handleCoverPageChange = useCallback(async (enabled: boolean) => {
+    if (!currentProject || !projectId) return;
+    setCoverPageEnabled(enabled);
+    setIsSavingCoverPage(true);
+    try {
+      await updateProject(projectId, { cover_page_enabled: enabled });
+      await syncProject(projectId);
+    } catch (error: any) {
+      show({ message: `儲存封面頁設定失敗: ${error.message || '未知錯誤'}`, type: 'error' });
+      setCoverPageEnabled(!enabled); // 回滾
+    } finally {
+      setIsSavingCoverPage(false);
+    }
+  }, [currentProject, projectId, syncProject, show]);
 
   const handleTemplateSelect = async (templateFile: File | null, templateId?: string) => {
     if (!projectId) return;
@@ -2010,6 +2032,10 @@ export const SlidePreview: React.FC = () => {
             onSaveTemplateStyle={handleSaveTemplateStyle}
             isSavingRequirements={isSavingRequirements}
             isSavingTemplateStyle={isSavingTemplateStyle}
+            // 封面頁設定
+            coverPageEnabled={coverPageEnabled}
+            onCoverPageEnabledChange={handleCoverPageChange}
+            isSavingCoverPage={isSavingCoverPage}
             // 匯出設定
             exportExtractorMethod={exportExtractorMethod}
             exportInpaintMethod={exportInpaintMethod}

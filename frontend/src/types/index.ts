@@ -68,6 +68,7 @@ export interface Project {
   template_image_url?: string; // 後端返回 template_image_url
   template_image_path?: string; // 前端使用的別名
   template_style?: string; // 風格描述文字（無模板圖模式）
+  cover_page_enabled?: boolean; // 第一頁是否採用極簡封面設計
   // 匯出設定
   export_extractor_method?: ExportExtractorMethod; // 元件提取方法
   export_inpaint_method?: ExportInpaintMethod; // 背景圖獲取方法

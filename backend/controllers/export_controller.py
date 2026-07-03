@@ -5,7 +5,7 @@ import logging
 import os
 import io
 
-from flask import Blueprint, request, current_app
+from flask import g, Blueprint, request, current_app
 from models import db, Project, Page, Task
 from utils import (
     error_response, not_found, bad_request, success_response,
@@ -41,7 +41,7 @@ def export_pptx(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         # Get page_ids from query params and fetch filtered pages
@@ -137,7 +137,7 @@ def export_pdf(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         # Get page_ids from query params and fetch filtered pages
@@ -229,7 +229,7 @@ def export_editable_pptx(project_id):
     try:
         project = Project.query.get(project_id)
         
-        if not project:
+        if not project or project.user_id != g.user_id:
             return not_found('Project')
         
         # Get parameters from request body

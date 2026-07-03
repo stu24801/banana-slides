@@ -576,6 +576,29 @@ export const Home: React.FC = () => {
               className="md:hidden hover:bg-banana-100/60 hover:shadow-sm hover:scale-105 transition-all duration-200"
               title="幫助"
             />
+            {/* 使用者資訊與登出 */}
+            <span className="hidden sm:inline text-xs text-gray-500 px-1">
+              {localStorage.getItem('bs_username') || ''}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'X-Auth-Token': localStorage.getItem('bs_auth_token') || '' },
+                  });
+                } catch { /* ignore */ }
+                localStorage.removeItem('bs_auth_token');
+                localStorage.removeItem('bs_username');
+                window.location.reload();
+              }}
+              className="text-xs md:text-sm hover:bg-banana-100/60 transition-all duration-200"
+              title="登出"
+            >
+              登出
+            </Button>
           </div>
         </div>
       </nav>
