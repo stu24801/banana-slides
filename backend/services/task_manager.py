@@ -18,6 +18,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# PaddleOCR 實例非 thread-safe：並行產圖時多執行緒同時 predict()
+# 會互相混到別頁的辨識結果，必須以鎖序列化
+_ocr_lock = threading.Lock()
+
 
 def detect_text_regions_ocr(image_path: str) -> list:
     """
@@ -34,15 +38,16 @@ def detect_text_regions_ocr(image_path: str) -> list:
         # PaddleOCR 3.x：show_log/use_angle_cls 已移除；
         # enable_mkldnn=False 避免 oneDNN PIR 轉換錯誤（CPU 推論）
         global _ocr_instance
-        if '_ocr_instance' not in globals():
-            logger.info("Initializing PaddleOCR...")
-            _ocr_instance = PaddleOCR(
-                use_textline_orientation=True,
-                lang="ch",
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                enable_mkldnn=False,
-            )
+        with _ocr_lock:
+            if '_ocr_instance' not in globals():
+                logger.info("Initializing PaddleOCR...")
+                _ocr_instance = PaddleOCR(
+                    use_textline_orientation=True,
+                    lang="ch",
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    enable_mkldnn=False,
+                )
 
         def _sample_text_color(img, x0, y0, x1, y1):
             """取樣 bbox 內文字顏色：背景取邊框中位數，文字取與背景差異大的像素中位數"""
@@ -59,7 +64,8 @@ def detect_text_regions_ocr(image_path: str) -> list:
             return '#%02X%02X%02X' % tuple(c)
 
         logger.info(f"Running OCR on {image_path}")
-        result = _ocr_instance.predict(image_path)
+        with _ocr_lock:
+            result = _ocr_instance.predict(image_path)
 
         if not result:
             return []
