@@ -23,6 +23,33 @@ logger = logging.getLogger(__name__)
 _ocr_lock = threading.Lock()
 
 
+def composite_clean_background(orig_img, bg_img, regions,
+                               pad_ratio: float = 0.012, feather_px: int = 6):
+    """
+    合成無字背景圖：只在（外擴＋羽化的）文字區塊取用 AI 擦字結果，
+    其餘像素完全保留原圖 — 避免 gpt-image-2 edit 整張重繪造成
+    照片/插圖/色調與原版漂移。
+    """
+    from PIL import Image, ImageDraw, ImageFilter
+    if not regions:
+        return bg_img
+    if bg_img.size != orig_img.size:
+        bg_img = bg_img.resize(orig_img.size, Image.Resampling.LANCZOS)
+    W, H = orig_img.size
+    pad_x, pad_y = W * pad_ratio, H * pad_ratio
+    mask = Image.new('L', (W, H), 0)
+    draw = ImageDraw.Draw(mask)
+    for r in regions:
+        x0 = max(0, r['x0'] * W - pad_x)
+        y0 = max(0, r['y0'] * H - pad_y)
+        x1 = min(W, r['x1'] * W + pad_x)
+        y1 = min(H, r['y1'] * H + pad_y)
+        draw.rectangle([x0, y0, x1, y1], fill=255)
+    if feather_px > 0:
+        mask = mask.filter(ImageFilter.GaussianBlur(feather_px))
+    return Image.composite(bg_img.convert('RGB'), orig_img.convert('RGB'), mask)
+
+
 def detect_text_regions_ocr(image_path: str) -> list:
     """
     使用 PaddleOCR 分析投影片圖，偵測每個文字區塊的 bounding box。
@@ -607,6 +634,23 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                             image, project_id, page_id, file_service, page_obj=page_obj
                         )
 
+                        # ── Vision 分析：偵測文字區塊 bbox（先做，供背景圖合成用）──
+                        regions = []
+                        try:
+                            _analyze_path = file_service.get_absolute_path(image_path) # 用原圖（含文字）來辨識
+                            logger.info(f"🔍 Detecting text regions with OCR for page {page_index}...")
+                            regions = detect_text_regions_ocr(_analyze_path)
+                            if regions:
+                                _p2 = Page.query.get(page_id)
+                                if _p2:
+                                    _p2.text_regions = json.dumps(regions, ensure_ascii=False)
+                                    db.session.commit()
+                                logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
+                            else:
+                                logger.warning(f"No text regions detected for page {page_index}")
+                        except Exception as vis_err:
+                            logger.warning(f"Text region detection failed (non-critical): {vis_err}")
+
                         # ── 生成無文字背景圖（供 PPTX 匯出用）─────────────────────
                         # 使用 edit_image 模式：基於原圖擦除文字，構圖保持一致
                         try:
@@ -626,6 +670,15 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                             )
                             if bg_image:
                                 abs_img_path = file_service.get_absolute_path(image_path)
+                                # 合成：僅文字區取擦字結果，其餘保留原圖像素
+                                try:
+                                    from PIL import Image as _PILImg
+                                    with _PILImg.open(abs_img_path) as _orig:
+                                        bg_image = composite_clean_background(
+                                            _orig.convert('RGB'), bg_image, regions
+                                        )
+                                except Exception as comp_err:
+                                    logger.warning(f"Background composite failed, using raw edit result: {comp_err}")
                                 import os
                                 bg_filename = os.path.basename(abs_img_path).replace('.png', '_bg.png')
                                 bg_dir = os.path.dirname(abs_img_path)
@@ -646,22 +699,6 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         except Exception as bg_err:
                             logger.warning(f"Background image generation failed (non-critical): {bg_err}")
 
-                        # ── Vision 分析：偵測文字區塊 bbox（供 PPTX 匯出用）──────────
-                        try:
-                            _analyze_path = file_service.get_absolute_path(image_path) # 用原圖（含文字）來辨識
-                            logger.info(f"🔍 Detecting text regions with OCR for page {page_index}...")
-                            regions = detect_text_regions_ocr(_analyze_path)
-                            if regions:
-                                _p2 = Page.query.get(page_id)
-                                if _p2:
-                                    _p2.text_regions = json.dumps(regions, ensure_ascii=False)
-                                    db.session.commit()
-                                logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
-                            else:
-                                logger.warning(f"No text regions detected for page {page_index}")
-                        except Exception as vis_err:
-                            logger.warning(f"Text region detection failed (non-critical): {vis_err}")
-                        # ────────────────────────────────────────────────────────────
 
                         return (page_id, image_path, None)
                         
