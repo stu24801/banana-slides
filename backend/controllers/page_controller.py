@@ -609,10 +609,12 @@ def edit_page_image(project_id, page_id):
                 by = max(0, int(bbox.get('y', 0)))
                 bw = min(int(bbox.get('width', iw)), iw - bx)
                 bh = min(int(bbox.get('height', ih)), ih - by)
-                mask = _PILImage.new("RGBA", (iw, ih), (255, 255, 255, 255))
-                for px in range(bx, bx + bw):
-                    for py in range(by, by + bh):
-                        mask.putpixel((px, py), (0, 0, 0, 0))
+                # 下游規則：亮（>128）=可編輯區。bbox 區塗白、其餘全黑。
+                from PIL import ImageDraw as _ImageDraw
+                mask = _PILImage.new("RGBA", (iw, ih), (0, 0, 0, 255))
+                _ImageDraw.Draw(mask).rectangle(
+                    [bx, by, bx + bw - 1, by + bh - 1], fill=(255, 255, 255, 255)
+                )
 
             # Persist mask to temp file so background thread can read it
             mask_tmp = _tmp.NamedTemporaryFile(suffix='.png', delete=False)
