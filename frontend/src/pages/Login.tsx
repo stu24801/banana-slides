@@ -10,6 +10,7 @@ export function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +28,12 @@ export function Login({ onLogin }: LoginProps) {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.pending_approval) {
+        setMode('login');
+        setPassword('');
+        setConfirm('');
+        setNotice(data.message || '註冊成功，帳號待管理員審核通過後即可登入');
+      } else if (data.success) {
         localStorage.setItem('bs_auth_token', data.token);
         localStorage.setItem('bs_username', data.username || username);
         onLogin(data.token);
@@ -89,6 +95,7 @@ export function Login({ onLogin }: LoginProps) {
           )}
 
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+          {notice && <p className="text-emerald-400 text-sm mb-3">{notice}</p>}
 
           <button
             type="submit"
@@ -103,7 +110,7 @@ export function Login({ onLogin }: LoginProps) {
               <>
                 還沒有帳號？{' '}
                 <button type="button" className="text-yellow-500 hover:underline"
-                  onClick={() => { setMode('register'); setError(''); }}>
+                  onClick={() => { setMode('register'); setError(''); setNotice(''); }}>
                   註冊
                 </button>
               </>
@@ -111,7 +118,7 @@ export function Login({ onLogin }: LoginProps) {
               <>
                 已有帳號？{' '}
                 <button type="button" className="text-yellow-500 hover:underline"
-                  onClick={() => { setMode('login'); setError(''); }}>
+                  onClick={() => { setMode('login'); setError(''); setNotice(''); }}>
                   返回登入
                 </button>
               </>

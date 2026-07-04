@@ -14,6 +14,7 @@ class User(db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    approved = db.Column(db.Boolean, nullable=False, default=False)  # 註冊後需管理員審核
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password: str):
@@ -27,5 +28,6 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'is_admin': self.is_admin,
+            'approved': self.approved,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }

@@ -104,9 +104,10 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    token = _issue_token(user)
-    return jsonify({'success': True, 'token': token, 'username': user.username,
-                    'is_admin': user.is_admin, 'ttl': TOKEN_TTL_SECONDS})
+    # 註冊後需管理員審核通過才能登入使用
+    return jsonify({'success': True, 'pending_approval': True,
+                    'username': user.username,
+                    'message': '註冊成功，帳號待管理員審核通過後即可登入'})
 
 
 @auth_bp.post('/login')
@@ -118,6 +119,9 @@ def login():
     user = User.query.filter_by(username=username).first()
     if user is None or not user.check_password(password):
         return jsonify({'success': False, 'error': '帳號或密碼錯誤'}), 401
+    if not user.approved:
+        return jsonify({'success': False, 'pending_approval': True,
+                        'error': '帳號尚未通過管理員審核'}), 403
 
     token = _issue_token(user)
     return jsonify({'success': True, 'token': token, 'username': user.username,
@@ -192,5 +196,37 @@ def admin_set_password(username):
     if user is None:
         return jsonify({'success': False, 'error': '帳號不存在'}), 404
     user.set_password(new_pw)
+    db.session.commit()
+    return jsonify({'success': True, 'username': username})
+
+
+@auth_bp.put('/users/<username>/approve')
+def admin_approve_user(username):
+    info = _resolve_token(_get_request_token())
+    if info is None or not info['is_admin']:
+        return jsonify({'success': False, 'error': '僅管理員可用'}), 403
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return jsonify({'success': False, 'error': '帳號不存在'}), 404
+    data = request.get_json(silent=True) or {}
+    user.approved = bool(data.get('approved', True))
+    db.session.commit()
+    return jsonify({'success': True, 'username': username, 'approved': user.approved})
+
+
+@auth_bp.delete('/users/<username>')
+def admin_delete_user(username):
+    info = _resolve_token(_get_request_token())
+    if info is None or not info['is_admin']:
+        return jsonify({'success': False, 'error': '僅管理員可用'}), 403
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return jsonify({'success': False, 'error': '帳號不存在'}), 404
+    if user.is_admin:
+        return jsonify({'success': False, 'error': '不可刪除管理員帳號'}), 400
+    from models import Project
+    if Project.query.filter_by(user_id=user.id).count() > 0:
+        return jsonify({'success': False, 'error': '該帳號名下仍有專案，請先處理'}), 400
+    db.session.delete(user)
     db.session.commit()
     return jsonify({'success': True, 'username': username})
