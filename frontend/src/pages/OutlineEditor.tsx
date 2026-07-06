@@ -190,7 +190,7 @@ export const OutlineEditor: React.FC = () => {
               <span className="hidden sm:inline">返回</span>
             </Button>
             <div className="flex items-center gap-1.5 md:gap-2">
-              <span className="text-xl md:text-2xl">🍌</span>
+              <span className="text-xl md:text-2xl">✨</span>
               <span className="text-base md:text-xl font-bold">生成</span>
             </div>
             <span className="text-gray-400 hidden lg:inline">|</span>

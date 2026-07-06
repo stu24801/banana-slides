@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, FileText, Palette, MessageSquare, Download, ChevronLeft, ChevronRight, ExternalLink, Settings, Check } from 'lucide-react';
+import { Sparkles, FileText, Palette, MessageSquare, Download, ChevronLeft, ChevronRight, Settings, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from './Modal';
 import { Button } from './Button';
@@ -137,7 +137,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             </p>
             <ul className="text-sm text-gray-600 space-y-1 pl-4">
               <li>• 您的 AI 服務提供商的 API Base 和 API Key</li>
-              <li>• 配置文字、影象生成模型(banana pro)和影象描述模型</li>
+              <li>• 配置文字、影象生成模型和影象描述模型</li>
               <li>• 若需要可編輯匯出功能，請確認 API Key 已正確配置</li>
 
             </ul>
@@ -178,17 +178,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         </div>
         <div className="flex-1 space-y-2">
         <h4 className="font-semibold text-gray-800">*問題反饋</h4>
-          <p className="text-sm text-gray-600">若使用過程中遇到問題，可在github issue提出</p>
+          <p className="text-sm text-gray-600">若使用過程中遇到問題，請聯繫管理員</p>
         </div>
-        <a
-          href="https://github.com/Anionex/banana-slides/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-banana-600 hover:text-banana-700 font-medium"
-        >
-          <ExternalLink size={14} />
-          前往Github issue
-        </a>
       </div>
 
       {/* 前往設定按鈕 */}
@@ -285,18 +276,6 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         ))}
       </div>
 
-      {/* 更多案例連結 */}
-      <div className="text-center pt-4">
-        <a
-          href="https://github.com/Anionex/banana-slides/issues/2"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-banana-600 hover:text-banana-700 font-medium"
-        >
-          <ExternalLink size={14} />
-          檢視更多使用案例
-        </a>
-      </div>
     </div>
   );
 
@@ -354,7 +333,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         <div className="text-center pb-4 border-b border-gray-100">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-banana-50 to-orange-50 rounded-full mb-3">
             <Palette size={18} className="text-banana-600" />
-            <span className="text-sm font-medium text-gray-700">生成 · Banana Slides</span>
+            <span className="text-sm font-medium text-gray-700">AI 簡報生成器</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-800">
             {currentPage === 0 ? '快速開始' : currentPage === 1 ? '功能介紹' : '結果案例'}
@@ -402,15 +381,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          <a
-            href="https://github.com/Anionex/banana-slides"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
-          >
-            <ExternalLink size={14} />
-            GitHub 倉庫
-          </a>
+
 
           <div className="flex items-center gap-2">
             {currentPage < totalPages - 1 ? (
