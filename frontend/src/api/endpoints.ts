@@ -27,6 +27,22 @@ export const createProject = async (data: CreateProjectRequest): Promise<ApiResp
 };
 
 /**
+ * 從結構化 Markdown 稿匯入，直接建立專案與可編輯頁面描述（不生成簡報）
+ */
+export const importMarkdown = async (
+  file: File
+): Promise<ApiResponse<{ project_id: string; status: string; title: string | null; pages_count: number }>> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post<ApiResponse<{ project_id: string; status: string; title: string | null; pages_count: number }>>(
+    '/api/projects/import-markdown',
+    formData
+  );
+  return response.data;
+};
+
+/**
  * 上傳模板圖片
  */
 export const uploadTemplate = async (

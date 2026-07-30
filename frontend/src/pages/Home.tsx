@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, FileText, FileEdit, ImagePlus, Paperclip, Palette, Lightbulb, Search, Settings, FolderOpen, HelpCircle } from 'lucide-react';
+import { Sparkles, FileText, FileEdit, ImagePlus, Paperclip, Palette, Lightbulb, Search, Settings, FolderOpen, HelpCircle, Upload, Download } from 'lucide-react';
 import { Button, Textarea, Card, useToast, MaterialGeneratorModal, MaterialCenterModal, ReferenceFileList, ReferenceFileSelector, FilePreviewModal, ImagePreviewList, HelpModal } from '@/components/shared';
 import { TemplateSelector, getTemplateFile } from '@/components/shared/TemplateSelector';
-import { listUserTemplates, type UserTemplate, uploadReferenceFile, type ReferenceFile, associateFileToProject, triggerFileParse, uploadMaterial, associateMaterialsToProject, listProjects } from '@/api/endpoints';
+import { listUserTemplates, type UserTemplate, uploadReferenceFile, type ReferenceFile, associateFileToProject, triggerFileParse, uploadMaterial, associateMaterialsToProject, listProjects, importMarkdown } from '@/api/endpoints';
 import { useProjectStore } from '@/store/useProjectStore';
 import { PRESET_STYLES } from '@/config/presetStyles';
 
@@ -32,6 +32,8 @@ export const Home: React.FC = () => {
   const [templateStyle, setTemplateStyle] = useState('');
   const [hoveredPresetId, setHoveredPresetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mdImportInputRef = useRef<HTMLInputElement>(null);
+  const [isImportingMarkdown, setIsImportingMarkdown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 檢查是否有當前專案 & 載入使用者模板
@@ -319,6 +321,44 @@ export const Home: React.FC = () => {
 
     // 清空 input，允許重複選擇同一檔案
     e.target.value = '';
+  };
+
+  // 匯入結構化 Markdown 稿：直接建立專案與可編輯頁面描述（不生成簡報）
+  const handleMarkdownImportSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 允許重複選同一檔案
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'md' && ext !== 'markdown' && ext !== 'txt') {
+      show({ message: '請上傳 .md（Markdown）檔案', type: 'error' });
+      return;
+    }
+
+    setIsImportingMarkdown(true);
+    try {
+      show({ message: '正在解析 Markdown 並建立專案...', type: 'info' });
+      const response = await importMarkdown(file);
+      const projectId = response.data?.project_id;
+      if (projectId) {
+        localStorage.setItem('currentProjectId', projectId);
+        show({
+          message: `已建立專案，共 ${response.data?.pages_count ?? 0} 頁，可直接編輯每頁描述`,
+          type: 'success',
+        });
+        navigate(`/project/${projectId}/detail`);
+      } else {
+        show({ message: '匯入失敗：未返回專案資訊', type: 'error' });
+      }
+    } catch (error: any) {
+      console.error('Markdown 匯入失敗:', error);
+      show({
+        message: `匯入失敗: ${error?.response?.data?.error?.message || error.message || '未知錯誤'}`,
+        type: 'error',
+      });
+    } finally {
+      setIsImportingMarkdown(false);
+    }
   };
 
   const tabConfig = {
@@ -853,6 +893,51 @@ export const Home: React.FC = () => {
                 projectId={currentProjectId}
               />
             )}
+          </div>
+
+          {/* 匯入結構化 Markdown 稿 */}
+          <div className="mb-2 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText size={18} className="text-emerald-600 flex-shrink-0" />
+              <h3 className="text-base md:text-lg font-semibold text-gray-900">
+                或：匯入已寫好的內容稿
+              </h3>
+            </div>
+            <p className="text-xs md:text-sm text-gray-500 mb-3 leading-relaxed">
+              已用「頁面標題／頁面文字」格式寫好每頁內容？上傳 Markdown 檔，系統會直接
+              <span className="font-medium text-gray-700">建立好專案與每頁描述供你編輯</span>，
+              <span className="font-medium text-gray-700">不會自動生成簡報圖片</span>。
+            </p>
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Upload size={16} />}
+                onClick={() => mdImportInputRef.current?.click()}
+                loading={isImportingMarkdown}
+                disabled={isImportingMarkdown}
+                className="text-xs md:text-sm"
+              >
+                {isImportingMarkdown ? '解析中...' : '匯入 Markdown 建立專案'}
+              </Button>
+              <a
+                href="/slides/import-example.md"
+                download="簡報內容稿_範例格式.md"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
+                title="下載範例格式，了解如何撰寫"
+              >
+                <Download size={16} />
+                下載範例格式
+              </a>
+            </div>
+            {/* 隱藏的 Markdown 檔案輸入 */}
+            <input
+              ref={mdImportInputRef}
+              type="file"
+              accept=".md,.markdown,.txt"
+              onChange={handleMarkdownImportSelect}
+              className="hidden"
+            />
           </div>
 
         </Card>

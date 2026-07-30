@@ -22,7 +22,7 @@ from services.task_manager import (
 )
 from utils import (
     success_response, error_response, not_found, bad_request,
-    parse_page_ids_from_body, get_filtered_pages
+    parse_page_ids_from_body, get_filtered_pages, parse_markdown_to_pages
 )
 
 logger = logging.getLogger(__name__)
@@ -219,6 +219,89 @@ def create_project():
         db.session.rollback()
         error_trace = traceback.format_exc()
         logger.error(f"create_project failed: {str(e)}", exc_info=True)
+        return error_response('SERVER_ERROR', str(e), 500)
+
+
+@project_bp.route('/import-markdown', methods=['POST'])
+def import_markdown():
+    """
+    POST /api/projects/import-markdown - 從結構化 Markdown 稿建立專案與可編輯頁面描述
+
+    接受以下任一種輸入：
+      - multipart/form-data，欄位 `file`（.md 檔）
+      - JSON body：{ "markdown_text": "..." }
+
+    行為：解析每頁的「頁面標題 / 頁面文字」，直接建立專案與頁面 description_content，
+    **不觸發任何 AI 生成**（不產出大綱切分、不生成圖片）。建立後可直接進入描述編輯頁調整。
+    """
+    try:
+        md_text = None
+        source_name = None
+
+        uploaded = request.files.get('file')
+        if uploaded is not None:
+            source_name = uploaded.filename
+            raw = uploaded.read()
+            try:
+                md_text = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                md_text = raw.decode('utf-8', errors='replace')
+        else:
+            data = request.get_json(silent=True) or {}
+            md_text = data.get('markdown_text') or data.get('markdown')
+
+        if not md_text or not md_text.strip():
+            return bad_request("請提供 Markdown 檔案（欄位 file）或內容（markdown_text）")
+
+        try:
+            deck_title, parsed_pages = parse_markdown_to_pages(md_text)
+        except ValueError as ve:
+            return bad_request(str(ve))
+
+        # 建立專案（descriptions 型別，狀態直接標記為描述已就緒）
+        project = Project(
+            user_id=g.user_id,
+            creation_type='descriptions',
+            idea_prompt=deck_title,          # 作為專案顯示名稱
+            description_text=md_text,         # 保留原始 Markdown 稿
+            status='DESCRIPTIONS_GENERATED',
+        )
+        db.session.add(project)
+        db.session.flush()  # 取得 project.id
+
+        now_iso = datetime.utcnow().isoformat()
+        for i, pd in enumerate(parsed_pages):
+            page = Page(
+                project_id=project.id,
+                order_index=i,
+                part=pd.get('part'),
+                status='DESCRIPTION_GENERATED',
+            )
+            page.set_outline_content({'title': pd['title'], 'points': []})
+            page.set_description_content({
+                'text': pd['description'],
+                'source': 'markdown_import',
+                'generated_at': now_iso,
+            })
+            db.session.add(page)
+
+        db.session.commit()
+
+        logger.info(
+            f"import_markdown: 使用者 {g.user_id} 從 '{source_name or 'inline'}' "
+            f"建立專案 {project.id}，共 {len(parsed_pages)} 頁"
+        )
+
+        return success_response({
+            'project_id': project.id,
+            'status': project.status,
+            'title': deck_title,
+            'pages_count': len(parsed_pages),
+        }, status_code=201)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"import_markdown failed: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 

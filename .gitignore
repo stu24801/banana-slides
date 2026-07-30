@@ -37,6 +37,8 @@
 !README.md
 # !docs/**/*.md
 !.github/**/*.md
+# Markdown 匯入功能的範例格式檔（需隨前端 build 一起發佈）
+!frontend/public/import-example.md
 *.pyc
 .env
 
