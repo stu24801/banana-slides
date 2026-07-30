@@ -277,9 +277,18 @@ def import_markdown():
                 part=pd.get('part'),
                 status='DESCRIPTION_GENERATED',
             )
+            # 還原為系統原生的「頁面標題／頁面文字」規格格式，
+            # 與正常生成的描述一致（下游生成圖片也依賴此格式）
+            spec_lines = []
+            if pd['title']:
+                spec_lines.append(f"頁面標題：{pd['title']}")
+            spec_lines.append("頁面文字：")
+            spec_lines.append(pd['description'])
+            spec_text = "\n".join(spec_lines)
+
             page.set_outline_content({'title': pd['title'], 'points': []})
             page.set_description_content({
-                'text': pd['description'],
+                'text': spec_text,
                 'source': 'markdown_import',
                 'generated_at': now_iso,
             })
