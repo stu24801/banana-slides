@@ -28,6 +28,56 @@ from config import get_config
 
 logger = logging.getLogger(__name__)
 
+# 解析度標籤 → 目標寬度（px）。高度依 aspect_ratio 換算。
+# 註：目前影像後端（gpt-image-2）原生只輸出 ~2K，並不吃 resolution 參數，
+# 因此在取得圖片後於此依使用者選擇縮放，讓「1K/2K/4K」設定真正生效。
+# 說明：4K 屬內插放大，只放大尺寸、不會增加真實細節。
+_RESOLUTION_TARGET_WIDTH = {
+    '1K': 1024,
+    '2K': 2048,
+    '4K': 4096,
+}
+
+
+def _target_size_for(aspect_ratio: str, resolution: str):
+    """依 aspect_ratio（如 '16:9'）與 resolution（'1K'/'2K'/'4K'）算出目標像素尺寸。
+
+    回傳 (width, height)；無法解析時回傳 None（表示不縮放）。
+    """
+    width = _RESOLUTION_TARGET_WIDTH.get((resolution or '').upper())
+    if not width:
+        return None
+    try:
+        w_ratio, h_ratio = (aspect_ratio or '16:9').split(':')
+        w_ratio, h_ratio = float(w_ratio), float(h_ratio)
+        if w_ratio <= 0 or h_ratio <= 0:
+            return None
+    except (ValueError, AttributeError):
+        w_ratio, h_ratio = 16.0, 9.0
+    height = round(width * h_ratio / w_ratio)
+    # 保持偶數，避免部分編碼器對奇數尺寸的問題
+    if height % 2:
+        height += 1
+    return (width, height)
+
+
+def _resize_to_resolution(image, aspect_ratio: str, resolution: str):
+    """把生成的圖片縮放到使用者選擇的解析度；已符合則原樣回傳。"""
+    if image is None:
+        return image
+    target = _target_size_for(aspect_ratio, resolution)
+    if not target:
+        return image
+    if image.size == target:
+        return image
+    try:
+        resized = image.resize(target, Image.LANCZOS)
+        logger.info(f"依解析度 {resolution} 將圖片由 {image.size} 縮放為 {target}")
+        return resized
+    except Exception as e:
+        logger.warning(f"解析度縮放失敗（沿用原尺寸 {image.size}）: {e}")
+        return image
+
 
 class ProjectContext:
     """專案上下文資料類，統一管理 AI 需要的所有專案資訊"""
@@ -525,7 +575,7 @@ class AIService:
             
             # 使用 image_provider 生成圖片
             # 根據 enable_image_reasoning 配置控制影象生成的思考模式
-            return self.image_provider.generate_image(
+            generated = self.image_provider.generate_image(
                 prompt=prompt,
                 ref_images=ref_images if ref_images else None,
                 aspect_ratio=aspect_ratio,
@@ -533,6 +583,8 @@ class AIService:
                 enable_thinking=self.enable_image_reasoning,
                 thinking_budget=self._get_image_thinking_budget()
             )
+            # 影像後端不吃 resolution，於此依使用者選擇縮放到目標尺寸，讓設定生效
+            return _resize_to_resolution(generated, aspect_ratio, resolution)
             
         except Exception as e:
             error_detail = f"Error generating image: {type(e).__name__}: {str(e)}"
