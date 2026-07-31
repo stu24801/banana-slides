@@ -82,6 +82,9 @@ class Config:
     # 圖片生成配置
     DEFAULT_ASPECT_RATIO = "16:9"
     DEFAULT_RESOLUTION = "2K"
+    # 產圖標題控制（可於設定頁覆蓋）
+    SHOW_PAGE_TITLE = os.getenv('SHOW_PAGE_TITLE', 'true').lower() in ('1', 'true', 'yes')
+    TITLE_EMPHASIS = os.getenv('TITLE_EMPHASIS', 'medium')  # small / medium / large / xlarge
     
     # 日誌配置
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()

@@ -126,6 +126,8 @@ export interface Settings {
   api_key_length: number;
   image_resolution: string;
   image_aspect_ratio: string;
+  show_page_title: boolean;
+  title_emphasis: string;
   max_description_workers: number;
   max_image_workers: number;
   text_model?: string;

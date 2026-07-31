@@ -909,6 +909,8 @@ export interface TestSettingsOverride {
   baidu_ocr_api_key?: string;
   ai_provider_format?: 'openai' | 'gemini';
   image_resolution?: string;
+  show_page_title?: boolean;
+  title_emphasis?: string;
   enable_text_reasoning?: boolean;
   text_thinking_budget?: number;
   enable_image_reasoning?: boolean;

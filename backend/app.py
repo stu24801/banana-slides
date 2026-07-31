@@ -207,7 +207,9 @@ def _load_settings_to_config(app):
         # Load image generation settings
         app.config['DEFAULT_RESOLUTION'] = settings.image_resolution
         app.config['DEFAULT_ASPECT_RATIO'] = settings.image_aspect_ratio
-        logging.info(f"Loaded image settings: {settings.image_resolution}, {settings.image_aspect_ratio}")
+        app.config['SHOW_PAGE_TITLE'] = settings.show_page_title
+        app.config['TITLE_EMPHASIS'] = settings.title_emphasis
+        logging.info(f"Loaded image settings: {settings.image_resolution}, {settings.image_aspect_ratio}, title={settings.title_emphasis}, show_title={settings.show_page_title}")
 
         # Load worker settings
         app.config['MAX_DESCRIPTION_WORKERS'] = settings.max_description_workers

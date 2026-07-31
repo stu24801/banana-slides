@@ -287,6 +287,14 @@ def get_page_description_prompt(project_context: 'ProjectContext', outline: list
     return final_prompt
 
 
+_TITLE_EMPHASIS_GUIDE = {
+    'small': '- 頁面標題採用較小、克制的字級，不喧賓奪主，將視覺重心留給內文。',
+    'medium': '- 頁面標題採用適中字級，與內文形成清楚但不誇張的層次。',
+    'large': '- 頁面標題採用較大且醒目的字級，明顯大於內文，強化標題的視覺層級。',
+    'xlarge': '- 頁面標題採用特大、極為醒目的字級，作為整頁最強的視覺焦點。',
+}
+
+
 def get_image_generation_prompt(page_desc: str, outline_text: str,
                                 current_section: str,
                                 has_material_images: bool = False,
@@ -294,7 +302,9 @@ def get_image_generation_prompt(page_desc: str, outline_text: str,
                                 language: str = None,
                                 has_template: bool = True,
                                 page_index: int = 1,
-                                cover_page_enabled: bool = True) -> str:
+                                cover_page_enabled: bool = True,
+                                show_page_title: bool = True,
+                                title_emphasis: str = 'medium') -> str:
     """
     生成圖片生成 prompt
     
@@ -328,6 +338,18 @@ def get_image_generation_prompt(page_desc: str, outline_text: str,
     template_style_guideline = "- 配色和設計語言和模板圖片嚴格相似。" if has_template else "- 嚴格按照風格描述進行設計。"
     forbidden_template_text_guidline = "- 只參考風格設計，禁止出現模板中的文字。\n" if has_template else ""
 
+    # 標題（頁標）控制：封面頁一律保留標題；其餘頁依設定決定是否顯示與字級
+    is_cover = (page_index == 1 and cover_page_enabled)
+    if not show_page_title and not is_cover:
+        title_guideline = (
+            "- 本頁不要渲染任何頁面標題／大標題（描述中的「頁面標題」僅供你理解內容，"
+            "不得顯示在畫面上）；直接以內文為主體進行排版。"
+        )
+    else:
+        title_guideline = _TITLE_EMPHASIS_GUIDE.get(
+            (title_emphasis or 'medium').lower(), _TITLE_EMPHASIS_GUIDE['medium']
+        )
+
     # 該處參考了@歸藏的A工具箱
     prompt = (f"""\
 你是一位專家級UI UX演示設計師，專注於生成設計良好的PPT頁面。
@@ -348,6 +370,7 @@ def get_image_generation_prompt(page_desc: str, outline_text: str,
 - 要求文字清晰銳利, 畫面為4K解析度，16:9比例。
 {template_style_guideline}
 - 根據內容自動設計最完美的構圖，不重不漏地渲染"頁面描述"中的文字。
+{title_guideline}
 - 如非必要，禁止出現 markdown 格式符號（如 # 和 * 等）。
 {forbidden_template_text_guidline}- 使用大小恰當的裝飾性圖形或插畫對空缺位置進行填補。
 </design_guidelines>

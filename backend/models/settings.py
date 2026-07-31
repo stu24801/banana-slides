@@ -15,6 +15,8 @@ class Settings(db.Model):
     api_key = db.Column(db.String(500), nullable=True)  # API金鑰
     image_resolution = db.Column(db.String(20), nullable=False, default='2K')  # 影象清晰度: 1K, 2K, 4K
     image_aspect_ratio = db.Column(db.String(10), nullable=False, default='16:9')  # 影象比例: 16:9, 4:3, 1:1
+    show_page_title = db.Column(db.Boolean, nullable=False, default=True)  # 產圖是否渲染頁面標題（頁標）
+    title_emphasis = db.Column(db.String(20), nullable=False, default='medium')  # 標題相對字級/強調: small, medium, large, xlarge
     max_description_workers = db.Column(db.Integer, nullable=False, default=5)  # 描述生成最大工作執行緒數
     max_image_workers = db.Column(db.Integer, nullable=False, default=8)  # 影象生成最大工作執行緒數
 
@@ -47,6 +49,8 @@ class Settings(db.Model):
             'api_key_length': len(self.api_key) if self.api_key else 0,
             'image_resolution': self.image_resolution,
             'image_aspect_ratio': self.image_aspect_ratio,
+            'show_page_title': self.show_page_title,
+            'title_emphasis': self.title_emphasis,
             'max_description_workers': self.max_description_workers,
             'max_image_workers': self.max_image_workers,
             'text_model': self.text_model,

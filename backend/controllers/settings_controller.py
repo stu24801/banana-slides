@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from contextlib import contextmanager
 from flask import g, Blueprint, request, current_app, jsonify
 from PIL import Image
-from models import db, Settings, Task
+from models import db, Settings, Task, Page
 from utils import success_response, error_response, bad_request
 from config import Config, PROJECT_ROOT
 from services.ai_service import AIService
@@ -185,6 +185,18 @@ def update_settings():
             aspect_ratio = data["image_aspect_ratio"]
             settings.image_aspect_ratio = aspect_ratio
 
+        # Update title (page heading) controls
+        if "show_page_title" in data:
+            settings.show_page_title = bool(data["show_page_title"])
+
+        if "title_emphasis" in data:
+            emphasis = data["title_emphasis"]
+            if emphasis not in ["small", "medium", "large", "xlarge"]:
+                return bad_request(
+                    "Title emphasis must be small, medium, large, or xlarge"
+                )
+            settings.title_emphasis = emphasis
+
         # Update worker configuration
         if "max_description_workers" in data:
             workers = int(data["max_description_workers"])
@@ -309,6 +321,8 @@ def reset_settings():
         settings.baidu_ocr_api_key = Config.BAIDU_OCR_API_KEY or None
         settings.image_resolution = Config.DEFAULT_RESOLUTION
         settings.image_aspect_ratio = Config.DEFAULT_ASPECT_RATIO
+        settings.show_page_title = Config.SHOW_PAGE_TITLE
+        settings.title_emphasis = Config.TITLE_EMPHASIS
         settings.max_description_workers = Config.MAX_DESCRIPTION_WORKERS
         settings.max_image_workers = Config.MAX_IMAGE_WORKERS
         settings.updated_at = datetime.now(timezone.utc)
@@ -485,6 +499,8 @@ def _sync_settings_to_config(settings: Settings):
     # Sync image generation settings
     current_app.config["DEFAULT_RESOLUTION"] = settings.image_resolution
     current_app.config["DEFAULT_ASPECT_RATIO"] = settings.image_aspect_ratio
+    current_app.config["SHOW_PAGE_TITLE"] = settings.show_page_title
+    current_app.config["TITLE_EMPHASIS"] = settings.title_emphasis
 
     # Sync worker settings
     current_app.config["MAX_DESCRIPTION_WORKERS"] = settings.max_description_workers
@@ -896,3 +912,178 @@ def get_test_status(task_id: str):
             f"獲取測試狀態失敗: {str(e)}",
             500
         )
+
+
+# ── 簡報生成器「卡住」診斷與自動排解 ─────────────────────────────────────────────
+# 背景任務跑在 in-memory ThreadPoolExecutor（task_manager）上，服務一旦重啟，
+# DB 中 PENDING/PROCESSING 的任務執行緒即消失，狀態卻永遠停在「生成中」→ 前端一直轉圈。
+# 這是最常見的「卡住」成因；其次是任務卡在 LLM Proxy 呼叫（逾時 / 429 / 模型不支援）。
+import os as _os
+from datetime import timedelta as _timedelta
+
+# 本次程序啟動時間（naive UTC，與 Task.created_at 的 datetime.utcnow 同基準）。
+# created_at 早於此時間且仍在 PENDING/PROCESSING 的任務＝上一個程序遺留的孤兒任務。
+_PROCESS_START = datetime.utcnow()
+
+# 逾時門檻（分鐘）：本程序啟動後才建立、但 PROCESSING 超過此時間 → 疑似卡在 LLM 呼叫。
+_STUCK_SOFT_MINUTES = int(_os.getenv('STUCK_SOFT_MINUTES', '8'))
+# 硬門檻：即使無法確定重啟，超過此時間一律視為需排解。
+_STUCK_HARD_MINUTES = int(_os.getenv('STUCK_HARD_MINUTES', '25'))
+
+_ACTIVE_STATUSES = ('PENDING', 'PROCESSING')
+
+
+def _diagnose_stuck_tasks():
+    """回傳 (stuck_list, active_count)。stuck_list 內每筆含診斷與排解建議。"""
+    now = datetime.utcnow()
+    active = Task.query.filter(Task.status.in_(_ACTIVE_STATUSES)).all()
+    stuck = []
+    for t in active:
+        created = t.created_at or now
+        age_min = max(0.0, (now - created).total_seconds() / 60.0)
+        before_restart = created < _PROCESS_START
+        if before_restart:
+            cause = '服務重啟導致背景執行緒中斷（孤兒任務）：前端會一直顯示「生成中」，任務永遠不會結束。'
+            is_stuck = True
+        elif age_min >= _STUCK_HARD_MINUTES:
+            cause = f'任務執行已達 {age_min:.0f} 分鐘，遠超正常時間：極可能卡在 LLM Proxy 呼叫（逾時 / 429 / 模型不支援）或圖片生成失敗未回收。'
+            is_stuck = True
+        elif age_min >= _STUCK_SOFT_MINUTES:
+            cause = f'任務執行已 {age_min:.0f} 分鐘，偏久：可能正卡在 LLM Proxy 呼叫或大量頁面生成，請觀察或稍後再排解。'
+            is_stuck = True
+        else:
+            continue
+        prog = t.get_progress()
+        stuck.append({
+            'task_id': t.id,
+            'project_id': t.project_id,
+            'task_type': t.task_type,
+            'status': t.status,
+            'progress': prog,
+            'age_minutes': round(age_min, 1),
+            'created_before_restart': before_restart,
+            'likely_cause': cause,
+        })
+    return stuck, len(active)
+
+
+def _diagnose_stuck_pages():
+    """回傳卡在 GENERATING 且 updated_at 老舊的頁面清單。"""
+    now = datetime.utcnow()
+    pages = Page.query.filter(Page.status == 'GENERATING').all()
+    stuck = []
+    for p in pages:
+        updated = p.updated_at or p.created_at or now
+        age_min = max(0.0, (now - updated).total_seconds() / 60.0)
+        before_restart = updated < _PROCESS_START
+        if before_restart or age_min >= _STUCK_SOFT_MINUTES:
+            stuck.append({
+                'page_id': p.id,
+                'project_id': p.project_id,
+                'order_index': p.order_index,
+                'age_minutes': round(age_min, 1),
+                'updated_before_restart': before_restart,
+                'has_description': bool(p.description_content),
+            })
+    return stuck
+
+
+@settings_bp.route("/stuck-tasks", methods=["GET"], strict_slashes=False)
+def diagnose_stuck_tasks():
+    """
+    GET /api/settings/stuck-tasks - 診斷簡報生成器是否有卡住的任務/頁面（僅 admin）。
+    """
+    if not getattr(g, 'is_admin', False):
+        return error_response('FORBIDDEN', '需要管理員權限', 403)
+    try:
+        stuck_tasks, active_count = _diagnose_stuck_tasks()
+        stuck_pages = _diagnose_stuck_pages()
+        orphan = sum(1 for t in stuck_tasks if t['created_before_restart'])
+        summary = {
+            'process_started_at': _PROCESS_START.isoformat() + 'Z',
+            'active_tasks': active_count,
+            'stuck_tasks': len(stuck_tasks),
+            'orphan_tasks': orphan,
+            'stuck_pages': len(stuck_pages),
+            'soft_threshold_minutes': _STUCK_SOFT_MINUTES,
+            'hard_threshold_minutes': _STUCK_HARD_MINUTES,
+        }
+        if not stuck_tasks and not stuck_pages:
+            summary['message'] = '未偵測到卡住的任務或頁面，簡報生成器運作正常。'
+        elif orphan:
+            summary['message'] = (f'偵測到 {orphan} 個因服務重啟中斷的孤兒任務，建議執行自動排解將其標記失敗並釋放頁面，'
+                                  '之後即可重新生成。')
+        else:
+            summary['message'] = f'偵測到 {len(stuck_tasks)} 個執行過久的任務，可執行自動排解或先觀察。'
+        return success_response({
+            'summary': summary,
+            'tasks': stuck_tasks,
+            'pages': stuck_pages,
+        })
+    except Exception as e:
+        logger.error(f"diagnose_stuck_tasks failed: {str(e)}", exc_info=True)
+        return error_response('STUCK_DIAGNOSE_ERROR', str(e), 500)
+
+
+@settings_bp.route("/stuck-tasks/repair", methods=["POST"], strict_slashes=False)
+def repair_stuck_tasks():
+    """
+    POST /api/settings/stuck-tasks/repair - 自動排解卡住的任務/頁面（僅 admin）。
+
+    Body（可選）:
+        { "include_soft": false }  # 是否連同「偏久但未逾硬門檻」的任務一併排解，預設 false
+                                     # （孤兒任務與超過硬門檻者一律排解）
+
+    處理方式：
+      - 卡住的任務 → status=FAILED、寫入 error_message、completed_at=now，讓前端停止轉圈。
+      - 卡在 GENERATING 的頁面 → 有描述退回 DESCRIPTION_GENERATED，否則退回 DRAFT，即可重新生成。
+    """
+    if not getattr(g, 'is_admin', False):
+        return error_response('FORBIDDEN', '需要管理員權限', 403)
+    try:
+        body = request.get_json(silent=True) or {}
+        include_soft = bool(body.get('include_soft', False))
+
+        stuck_tasks, _ = _diagnose_stuck_tasks()
+        now = datetime.utcnow()
+        repaired_tasks = []
+        for info in stuck_tasks:
+            # 孤兒任務或逾硬門檻一律排解；「偏久」者僅在 include_soft 時排解。
+            hard = info['created_before_restart'] or info['age_minutes'] >= _STUCK_HARD_MINUTES
+            if not hard and not include_soft:
+                continue
+            t = Task.query.get(info['task_id'])
+            if not t or t.status not in _ACTIVE_STATUSES:
+                continue
+            reason = ('服務重啟導致背景任務中斷，已自動標記失敗，請重新生成。'
+                      if info['created_before_restart']
+                      else '任務執行逾時卡住，已自動標記失敗，請重新生成。')
+            t.status = 'FAILED'
+            t.error_message = reason
+            t.completed_at = now
+            repaired_tasks.append(info['task_id'])
+
+        # 釋放卡在 GENERATING 的頁面
+        repaired_pages = 0
+        for p in Page.query.filter(Page.status == 'GENERATING').all():
+            updated = p.updated_at or p.created_at or now
+            age_min = (now - updated).total_seconds() / 60.0
+            hard = updated < _PROCESS_START or age_min >= _STUCK_HARD_MINUTES
+            if not hard and not include_soft:
+                continue
+            p.status = 'DESCRIPTION_GENERATED' if p.description_content else 'DRAFT'
+            repaired_pages += 1
+
+        db.session.commit()
+        return success_response({
+            'repaired_tasks': repaired_tasks,
+            'repaired_task_count': len(repaired_tasks),
+            'repaired_pages': repaired_pages,
+            'message': (f'已排解 {len(repaired_tasks)} 個卡住任務、釋放 {repaired_pages} 個頁面。'
+                        if (repaired_tasks or repaired_pages)
+                        else '沒有需要排解的項目（可能都尚在正常處理中；如要強制處理偏久任務，請帶 include_soft=true）。'),
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"repair_stuck_tasks failed: {str(e)}", exc_info=True)
+        return error_response('STUCK_REPAIR_ERROR', str(e), 500)

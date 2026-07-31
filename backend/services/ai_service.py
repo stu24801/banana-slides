@@ -490,7 +490,19 @@ class AIService:
         # 在傳給文生圖模型之前，移除 Markdown 圖片連結
         # 圖片本身已經透過 additional_ref_images 傳遞，只保留文字描述
         cleaned_page_desc = self.remove_markdown_images(page_desc)
-        
+
+        # 讀取全域「頁標開關 / 標題字級」設定（於設定頁維護，同步至 current_app.config）
+        cfg = get_config()
+        show_page_title = getattr(cfg, 'SHOW_PAGE_TITLE', True)
+        title_emphasis = getattr(cfg, 'TITLE_EMPHASIS', 'medium')
+        try:
+            from flask import current_app, has_app_context
+            if has_app_context() and current_app and hasattr(current_app, 'config'):
+                show_page_title = current_app.config.get('SHOW_PAGE_TITLE', show_page_title)
+                title_emphasis = current_app.config.get('TITLE_EMPHASIS', title_emphasis)
+        except Exception:
+            pass
+
         prompt = get_image_generation_prompt(
             page_desc=cleaned_page_desc,
             outline_text=outline_text,
@@ -500,9 +512,11 @@ class AIService:
             language=language,
             has_template=has_template,
             page_index=page_index,
-            cover_page_enabled=cover_page_enabled
+            cover_page_enabled=cover_page_enabled,
+            show_page_title=show_page_title,
+            title_emphasis=title_emphasis
         )
-        
+
         return prompt
     
     def generate_image(self, prompt: str, ref_image_path: Optional[str] = None, 
