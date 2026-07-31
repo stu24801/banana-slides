@@ -1368,3 +1368,114 @@ def export_editable_pptx_with_recursive_analysis_task(
                 task.error_message = str(e)
                 task.completed_at = datetime.utcnow()
                 db.session.commit()
+
+
+def export_master_pptx_task(
+    task_id: str,
+    project_id: str,
+    master_path: str,
+    filename: str,
+    file_service,
+    page_ids: list = None,
+    remove_logo: bool = True,
+    app=None,
+):
+    """套用母版匯出（v2）的後臺任務。
+
+    保留每頁 AI 去字底圖、擦除與母版重複的 logo、疊上可編輯文字，全部放到
+    使用者提供的母版上。詳見 services.master_export_service.build_pptx_from_master。
+    """
+    logger.info(f"🚀 Task {task_id} started: export_master_pptx (project={project_id})")
+    if app is None:
+        raise ValueError("Flask app instance must be provided")
+
+    with app.app_context():
+        import os
+        import json as _json
+        from datetime import datetime
+        from models import Project
+        from services.master_export_service import build_pptx_from_master
+        try:
+            task = Task.query.get(task_id)
+            if task:
+                task.status = 'PROCESSING'
+                task.set_progress({"total": 100, "completed": 5, "percent": 5,
+                                   "current_step": "準備頁面資料", "messages": ["開始套用母版匯出…"]})
+                db.session.commit()
+
+            pages = get_filtered_pages(project_id, page_ids)
+            pages_data = []
+            for pg in pages:
+                if not pg.generated_image_path:
+                    continue
+                oc = pg.get_outline_content() or {}
+                tr = None
+                if pg.text_regions:
+                    try:
+                        tr = _json.loads(pg.text_regions)
+                    except Exception:
+                        tr = None
+                img_abs = file_service.get_absolute_path(pg.generated_image_path)
+                bg_abs = file_service.get_absolute_path(pg.bg_image_path) if pg.bg_image_path else None
+                pages_data.append({
+                    "image_path": img_abs,
+                    "bg_image_path": bg_abs if (bg_abs and os.path.exists(bg_abs)) else None,
+                    "title": oc.get("title", ""),
+                    "points": oc.get("points", []),
+                    "text_regions": tr,
+                })
+
+            if not pages_data:
+                raise ValueError("沒有可匯出的頁面（缺少已生成的圖片）")
+
+            task = Task.query.get(task_id)
+            if task:
+                task.set_progress({"total": 100, "completed": 20, "percent": 20,
+                                   "current_step": "偵測 logo、組裝母版",
+                                   "messages": [f"共 {len(pages_data)} 頁，開始組裝…"]})
+                db.session.commit()
+
+            exports_dir = os.path.join(app.config['UPLOAD_FOLDER'], project_id, 'exports')
+            os.makedirs(exports_dir, exist_ok=True)
+            output_path = os.path.join(exports_dir, filename)
+
+            build_pptx_from_master(master_path, pages_data, output_path, remove_logo=remove_logo)
+            logger.info(f"✓ 母版匯出完成: {output_path}")
+
+            download_path = f"/files/{project_id}/exports/{filename}"
+            task = Task.query.get(task_id)
+            if task:
+                task.status = 'COMPLETED'
+                task.completed_at = datetime.utcnow()
+                task.set_progress({
+                    "total": 100, "completed": 100, "failed": 0, "percent": 100,
+                    "current_step": "✓ 匯出完成",
+                    "messages": ["✅ 套用母版匯出完成！"],
+                    "download_url": download_path,
+                    "filename": filename,
+                    "method": "master_template",
+                })
+                db.session.commit()
+        except Exception as e:
+            import traceback
+            logger.error(f"✗ 母版匯出任務 {task_id} 失敗: {traceback.format_exc()}")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            task = Task.query.get(task_id)
+            if task:
+                task.status = 'FAILED'
+                task.error_message = str(e)
+                task.completed_at = datetime.utcnow()
+                try:
+                    db.session.commit()
+                except Exception:
+                    pass
+        finally:
+            # 清理暫存的母版檔
+            try:
+                if master_path and os.path.exists(master_path):
+                    os.remove(master_path)
+            except Exception:
+                pass

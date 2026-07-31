@@ -321,3 +321,74 @@ def export_editable_pptx(project_id):
     except Exception as e:
         logger.exception("Error creating export task")
         return error_response('SERVER_ERROR', str(e), 500)
+
+
+@export_bp.route('/<project_id>/export/master-pptx', methods=['POST'])
+def export_master_pptx(project_id):
+    """POST /api/projects/{project_id}/export/master-pptx — 套用母版匯出（非同步）
+
+    multipart/form-data:
+        master:    母版 .pptx / .potx 檔（必填）
+        filename:  可選，輸出檔名
+        page_ids:  可選，逗號分隔的頁面 ID
+        remove_logo: 可選，'0' 關閉 logo 擦除（預設開）
+
+    回傳 task_id；輪詢 /api/projects/{project_id}/tasks/{task_id} 取得下載連結。
+    """
+    try:
+        project = Project.query.get(project_id)
+        if not project or project.user_id != g.user_id:
+            return not_found('Project')
+
+        up = request.files.get('master')
+        if not up or not up.filename:
+            return bad_request('缺少母版檔（欄位名 master）')
+        ext = os.path.splitext(up.filename)[1].lower()
+        if ext not in ('.pptx', '.potx'):
+            return bad_request('母版檔需為 .pptx 或 .potx')
+
+        page_ids_raw = request.form.get('page_ids', '')
+        selected_page_ids = [p.strip() for p in page_ids_raw.split(',') if p.strip()] or None
+        pages = get_filtered_pages(project_id, selected_page_ids)
+        if not pages:
+            return bad_request('No pages found for project')
+        if not any(p.generated_image_path for p in pages):
+            return bad_request('No generated images found for project')
+
+        filename = request.form.get('filename') or f'presentation_master_{project_id}.pptx'
+        if not filename.endswith('.pptx'):
+            filename += '.pptx'
+        remove_logo = request.form.get('remove_logo', '1') not in ('0', 'false', 'False')
+
+        # 存母版到專案暫存目錄
+        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
+        tmp_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], project_id, 'tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        master_path = os.path.join(tmp_dir, f'master_upload{ext}')
+        up.save(master_path)
+
+        task = Task(project_id=project_id, task_type='EXPORT_MASTER_PPTX', status='PENDING')
+        db.session.add(task)
+        db.session.commit()
+
+        from services.task_manager import task_manager, export_master_pptx_task
+        app = current_app._get_current_object()
+        task_manager.submit_task(
+            task.id,
+            export_master_pptx_task,
+            project_id=project_id,
+            master_path=master_path,
+            filename=filename,
+            file_service=file_service,
+            page_ids=selected_page_ids,
+            remove_logo=remove_logo,
+            app=app,
+        )
+        logger.info(f"Submitted master-pptx export task {task.id} for project {project_id}")
+        return success_response(
+            data={"task_id": task.id, "method": "master_template", "filename": filename},
+            message="Master export task created",
+        )
+    except Exception as e:
+        logger.error(f"export_master_pptx failed: {e}", exc_info=True)
+        return error_response('SERVER_ERROR', str(e), 500)

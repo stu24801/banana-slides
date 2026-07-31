@@ -497,6 +497,31 @@ export const exportEditablePPTX = async (
   return response.data;
 };
 
+/**
+ * 套用母版匯出（非同步任務）——保留 AI 底圖、去字、擦除與母版重複的 logo，套到母版上
+ * @param projectId 專案ID
+ * @param master 母版 .pptx / .potx 檔
+ * @param filename 可選輸出檔名
+ * @param pageIds 可選頁面ID列表
+ */
+export const exportMasterPPTX = async (
+  projectId: string,
+  master: File,
+  filename?: string,
+  pageIds?: string[]
+): Promise<ApiResponse<{ task_id: string; filename: string }>> => {
+  const formData = new FormData();
+  formData.append('master', master);
+  if (filename) formData.append('filename', filename);
+  if (pageIds && pageIds.length > 0) formData.append('page_ids', pageIds.join(','));
+  const response = await apiClient.post<ApiResponse<{ task_id: string; filename: string }>>(
+    `/api/projects/${projectId}/export/master-pptx`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return response.data;
+};
+
 // ===== 素材生成 =====
 
 /**

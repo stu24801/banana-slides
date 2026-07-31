@@ -9,6 +9,7 @@ const taskTypeLabels: Record<ExportTaskType, string> = {
   'pptx': '可編輯 PPTX',
   'pdf': 'PDF',
   'editable-pptx': 'PPTX（純圖片）',
+  'master-pptx': '套用母版 PPTX',
 };
 
 /**

@@ -32,7 +32,7 @@ import { SlideCard } from '@/components/preview/SlideCard';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useExportTasksStore, type ExportTaskType } from '@/store/useExportTasksStore';
 import { getImageUrl } from '@/api/client';
-import { getPageImageVersions, setCurrentImageVersion, updateProject, uploadTemplate, exportPPTX as apiExportPPTX, exportPDF as apiExportPDF, exportEditablePPTX as apiExportEditablePPTX } from '@/api/endpoints';
+import { getPageImageVersions, setCurrentImageVersion, updateProject, uploadTemplate, exportPPTX as apiExportPPTX, exportPDF as apiExportPDF, exportEditablePPTX as apiExportEditablePPTX, exportMasterPPTX as apiExportMasterPPTX } from '@/api/endpoints';
 import type { ImageVersion, DescriptionContent, ExportExtractorMethod, ExportInpaintMethod, Page } from '@/types';
 import { normalizeErrorMessage } from '@/utils';
 
@@ -69,6 +69,7 @@ export const SlidePreview: React.FC = () => {
   const [editOutlinePoints, setEditOutlinePoints] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const masterFileInputRef = useRef<HTMLInputElement>(null);
   const [showExportTasksPanel, setShowExportTasksPanel] = useState(false);
   // 多選匯出相關狀態
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
@@ -934,6 +935,35 @@ export const SlidePreview: React.FC = () => {
     }
   };
 
+  const handleMasterFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // 允許重選同檔
+    if (!file || !projectId) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.pptx') && !name.endsWith('.potx')) {
+      show({ message: '母版檔需為 .pptx 或 .potx', type: 'error' });
+      return;
+    }
+    const pageIds = getSelectedPageIdsForExport();
+    const exportTaskId = `export-${Date.now()}`;
+    try {
+      addTask({ id: exportTaskId, taskId: '', projectId, type: 'master-pptx', status: 'PROCESSING', pageIds });
+      show({ message: '套用母版匯出已開始，可在匯出任務面板檢視進度', type: 'success' });
+      const response = await apiExportMasterPPTX(projectId, file, undefined, pageIds);
+      const taskId = response.data?.task_id;
+      if (taskId) {
+        addTask({ id: exportTaskId, taskId, projectId, type: 'master-pptx', status: 'PROCESSING', pageIds });
+        pollExportTask(exportTaskId, projectId, taskId);
+      }
+    } catch (error: any) {
+      addTask({
+        id: exportTaskId, taskId: '', projectId, type: 'master-pptx', status: 'FAILED',
+        errorMessage: normalizeErrorMessage(error.message || '套用母版匯出失敗'), pageIds,
+      });
+      show({ message: normalizeErrorMessage(error.message || '套用母版匯出失敗'), type: 'error' });
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     const targetProjectId = projectId || currentProject?.id;
     if (!targetProjectId) {
@@ -1286,8 +1316,23 @@ export const SlidePreview: React.FC = () => {
                 >
                   匯出為 PDF
                 </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={() => { setShowExportMenu(false); masterFileInputRef.current?.click(); }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-sm"
+                  title="保留 AI 底圖、去除文字改為可編輯、擦除與母版重複的 logo，套用你的 PowerPoint 母版"
+                >
+                  套用母版匯出（上傳母版）
+                </button>
               </div>
             )}
+            <input
+              ref={masterFileInputRef}
+              type="file"
+              accept=".pptx,.potx"
+              className="hidden"
+              onChange={handleMasterFileSelect}
+            />
           </div>
         </div>
       </header>
