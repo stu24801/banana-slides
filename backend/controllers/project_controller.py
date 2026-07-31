@@ -806,7 +806,7 @@ def generate_images(project_id):
         outline = _reconstruct_outline_from_pages(pages)
         
         # 從配置中讀取預設併發數，如果請求中提供了則使用請求的值
-        max_workers = data.get('max_workers', current_app.config.get('MAX_IMAGE_WORKERS', 8))
+        max_workers = data.get('max_workers', current_app.config.get('MAX_IMAGE_WORKERS', 4))
         use_template = data.get('use_template', True)
         language = data.get('language', current_app.config.get('OUTPUT_LANGUAGE', 'zh'))
         

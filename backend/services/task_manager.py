@@ -5,13 +5,16 @@ No need for Celery or Redis, uses in-memory task tracking
 import logging
 import threading
 import os
+import time
 import base64
 import json
+import random
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Dict, Any
 from datetime import datetime
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 from models import db, Task, Page, Material, PageImageVersion
 from utils import get_filtered_pages
 from pathlib import Path
@@ -21,6 +24,33 @@ logger = logging.getLogger(__name__)
 # PaddleOCR 實例非 thread-safe：並行產圖時多執行緒同時 predict()
 # 會互相混到別頁的辨識結果，必須以鎖序列化
 _ocr_lock = threading.Lock()
+
+
+def commit_with_retry(retries: int = 6, base_delay: float = 0.3):
+    """
+    SQLite 併發寫入時常會撞到「database is locked」。雖然已設 WAL + busy_timeout，
+    但多條產圖執行緒同時 commit 仍可能超時。這裡在遇到 lock 時 rollback 後退避重試，
+    避免單一 commit 失敗汙染整個 session（PendingRollbackError）而讓整個任務崩潰、
+    使頁面永遠卡在 GENERATING。
+
+    Raises:
+        最後一次仍失敗時，向上拋出原例外。
+    """
+    for attempt in range(retries):
+        try:
+            db.session.commit()
+            return
+        except OperationalError as e:
+            msg = str(e).lower()
+            db.session.rollback()
+            if 'locked' not in msg and 'busy' not in msg:
+                raise
+            if attempt == retries - 1:
+                logger.error(f"commit_with_retry 最終失敗（已重試 {retries} 次）: {e}")
+                raise
+            delay = base_delay * (2 ** attempt) + random.uniform(0, base_delay)
+            logger.warning(f"database is locked，{delay:.2f}s 後重試 commit（第 {attempt + 1} 次）")
+            time.sleep(delay)
 
 
 def composite_clean_background(orig_img, bg_img, regions,
@@ -567,7 +597,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         
                         # Update page status
                         page_obj.status = 'GENERATING'
-                        db.session.commit()
+                        commit_with_retry()
                         logger.debug(f"Page {page_id} status updated to GENERATING")
                         
                         # Get description content
@@ -644,7 +674,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                                 _p2 = Page.query.get(page_id)
                                 if _p2:
                                     _p2.text_regions = json.dumps(regions, ensure_ascii=False)
-                                    db.session.commit()
+                                    commit_with_retry()
                                 logger.info(f"✅ Detected {len(regions)} text regions for page {page_index}")
                             else:
                                 logger.warning(f"No text regions detected for page {page_index}")
@@ -692,7 +722,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                                 _p = Page.query.get(page_id)
                                 if _p:
                                     _p.bg_image_path = bg_rel_path
-                                    db.session.commit()
+                                    commit_with_retry()
                                 logger.info(f"✅ Background image saved: {bg_abs_path}")
                             else:
                                 logger.warning(f"Background image generation returned None for page {page_index}")
@@ -728,18 +758,18 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
                         if error:
                             page.status = 'FAILED'
                             failed += 1
-                            db.session.commit()
+                            commit_with_retry()
                         else:
                             # 圖片已在子執行緒中儲存並建立版本記錄，這裡只需要更新計數
                             completed += 1
                             # 重新整理頁面物件以獲取最新狀態
                             db.session.refresh(page)
-                    
+
                     # Update task progress
                     task = Task.query.get(task_id)
                     if task:
                         task.update_progress(completed=completed, failed=failed)
-                        db.session.commit()
+                        commit_with_retry()
                         logger.info(f"Image Progress: {completed}/{len(pages)} pages completed")
             
             # Mark task as completed
@@ -747,28 +777,51 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             if task:
                 task.status = 'COMPLETED'
                 task.completed_at = datetime.utcnow()
-                db.session.commit()
+                commit_with_retry()
                 logger.info(f"Task {task_id} COMPLETED - {completed} images generated, {failed} failed")
-            
+
             # Update project status
             from models import Project
             project = Project.query.get(project_id)
             if project and failed == 0:
                 project.status = 'COMPLETED'
-                db.session.commit()
+                commit_with_retry()
                 logger.info(f"Project {project_id} status updated to COMPLETED")
-        
+
         except Exception as e:
+            # 先 rollback，避免 session 已被前面的例外汙染（PendingRollbackError），
+            # 導致以下收尾動作再次崩潰、讓頁面永遠卡在 GENERATING。
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            logger.error(f"generate_images_task 失敗，開始收尾: {e}", exc_info=True)
+            # 把這批仍卡在 GENERATING 的頁面標記為 FAILED，避免永久卡住
+            try:
+                stuck_pages = get_filtered_pages(project_id, page_ids)
+                for p in stuck_pages:
+                    if p.status == 'GENERATING':
+                        p.status = 'FAILED'
+                commit_with_retry()
+            except Exception as cleanup_err:
+                logger.error(f"收尾標記卡住頁面失敗: {cleanup_err}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
             # Mark task as failed
             task = Task.query.get(task_id)
             if task:
                 task.status = 'FAILED'
                 task.error_message = str(e)
                 task.completed_at = datetime.utcnow()
-                db.session.commit()
+                try:
+                    commit_with_retry()
+                except Exception:
+                    pass
 
 
-def generate_single_page_image_task(task_id: str, project_id: str, page_id: str, 
+def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
                                     ai_service, file_service, outline: List[Dict],
                                     use_template: bool = True, aspect_ratio: str = "16:9",
                                     resolution: str = "2K", app=None,

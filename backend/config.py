@@ -75,7 +75,9 @@ class Config:
     
     # 併發配置
     MAX_DESCRIPTION_WORKERS = int(os.getenv('MAX_DESCRIPTION_WORKERS', '5'))
-    MAX_IMAGE_WORKERS = int(os.getenv('MAX_IMAGE_WORKERS', '8'))
+    # 由 8 調降為 4：每條產圖執行緒都會多次寫 SQLite（頁狀態、text_regions、bg_image_path），
+    # 併發過高會頻繁撞到「database is locked」。4 仍保有並行度，且大幅降低寫入衝突。
+    MAX_IMAGE_WORKERS = int(os.getenv('MAX_IMAGE_WORKERS', '4'))
     
     # 圖片生成配置
     DEFAULT_ASPECT_RATIO = "16:9"
